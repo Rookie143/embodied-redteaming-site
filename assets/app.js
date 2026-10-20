@@ -1,4 +1,6 @@
-/* Embodied Red Teaming: the home page. Everything it shows comes from data/site.js (text, models, media) and
+/* Embodied Red Teaming: every page of the site. Each page names itself in <body data-page> and its way back to the
+   site root in <body data-root> ('' on the home page, '../' on the others); this script fills whatever sections the
+   page has. Everything it shows comes from data/site.js (text, models, media) and
    data/results.js (numbers). The layout and the look follow the Embodied First Exam site (MIT), whose stylesheet
    assets/exam.css is used as is; assets/redteam.css adds the pieces that page did not have. */
 (() => {
@@ -11,6 +13,10 @@ const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const catById = Object.fromEntries(S.categories.map((c) => [c.id, c]));
 const modelById = Object.fromEntries(S.models.map((m) => [m.id, m]));
 const GH = S.meta.github;
+const PAGE = document.body.dataset.page || 'home';
+const ROOT = document.body.dataset.root || '';
+const link = (p = '') => ROOT + p || './';
+const PAGES = [['leaderboard', 'Leaderboard'], ['hazards', 'Hazards'], ['attacks', 'Attacks'], ['scenarios', 'Scenarios'], ['method', 'Method']];
 
 const ICON = {
   doc: '<path d="M6 2.5h8l4 4v15H6z"/><path d="M14 2.5v4h4M9 11h6M9 14.5h6M9 18h4"/>',
@@ -38,10 +44,9 @@ const MENU = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 /* ------------------------------------------------------------------ chrome */
 
 function chrome() {
-  const links = [['#leaderboard', 'Leaderboard'], ['#breaks', 'Hazards'], ['#attacks', 'Attacks'], ['#scenarios', 'Scenarios'], ['#how', 'Method']];
   $('#nav').outerHTML = `<nav class="nav always" aria-label="Sections">
-    <a class="wordmark" href="#top"><span class="mark" aria-hidden="true">${MARK}</span>${esc(S.meta.name)}</a>
-    <div class="nav-links">${links.map(([h, l]) => `<a href="${h}">${l}</a>`).join('')}</div>
+    <a class="wordmark" href="${link()}"><span class="mark" aria-hidden="true">${MARK}</span>${esc(S.meta.name)}</a>
+    <div class="nav-links">${PAGES.map(([p, l]) => `<a href="${link(`${p}/`)}"${p === PAGE ? ' class="active" aria-current="page"' : ''}>${l}</a>`).join('')}</div>
     <a class="icon-btn gh-btn${GH ? '' : ' soon'}"${GH ? ` href="${esc(GH)}"` : ' aria-disabled="true"'} aria-label="GitHub" title="${GH ? 'GitHub' : 'GitHub: coming soon'}">${GITHUB}</a>
     <button class="icon-btn menu-btn" id="menu-toggle" type="button" aria-label="Menu" aria-expanded="false">${MENU}</button>
     <button class="icon-btn" id="theme-toggle" type="button" aria-label="Switch between day and night">${MOON}${SUN}</button>
@@ -62,11 +67,11 @@ function chrome() {
   });
   const d = new Date(S.meta.updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   $('#footer').outerHTML = `<footer class="footer"><div class="footer-grid">
-    <div><a class="wordmark" href="#top"><span class="mark" aria-hidden="true">${MARK}</span>${esc(S.meta.name)}</a>
+    <div><a class="wordmark" href="${link()}"><span class="mark" aria-hidden="true">${MARK}</span>${esc(S.meta.name)}</a>
       <div class="prov">Results updated ${esc(d)}${S.meta.placeholder ? ' · placeholder data' : ''}</div>
       <div class="copy">© 2026 ${esc(S.meta.name)} · layout after <a class="link" href="https://www.embodied-first-exam.ai/">Embodied First Exam</a> (MIT)</div></div>
-    <div><h5>The arena</h5><ul><li><a href="#leaderboard">Leaderboard</a></li><li><a href="#breaks">Hazards</a></li><li><a href="#attacks">Attacks</a></li></ul></div>
-    <div><h5>Method</h5><ul><li><a href="#scenarios">Scenarios</a></li><li><a href="#how">The loop</a></li><li><a href="#how">Metrics</a></li></ul></div>
+    <div><h5>The arena</h5><ul><li><a href="${link('leaderboard/')}">Leaderboard</a></li><li><a href="${link('hazards/')}">Hazards</a></li><li><a href="${link('attacks/')}">Attacks</a></li></ul></div>
+    <div><h5>Method</h5><ul><li><a href="${link('scenarios/')}">Scenarios</a></li><li><a href="${link('method/')}">The loop</a></li><li><a href="${link('method/')}#metrics">Metrics</a></li></ul></div>
     <div><h5>Community</h5><ul><li><a data-gh>GitHub</a></li><li><a data-gh>Submit an attack</a></li></ul></div>
   </div></footer>`;
   $$('footer [data-gh]').forEach((el) => { if (GH) el.href = GH; else el.classList.add('soon'); });
@@ -75,6 +80,37 @@ function chrome() {
     b.hidden = false;
     b.innerHTML = '<i></i>Preview · placeholder numbers and media';
   }
+}
+
+/** The inner pages' heads: a small, quiet copy of the first screen's wall on the right, pictures only, so the title
+ *  sits on the same paper as the home page's. Each page deals the scenes in its own order; a phone gets none. */
+function headWall() {
+  const head = $('.page-head');
+  if (!head || innerWidth < 760) return;
+  let seed = [...PAGE].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+  // unsafe scenes first, so the wall says what the site is about
+  const pool = S.tiles.map((t) => [rnd() + (t.kind === 'unsafe' ? 0 : 0.6), t]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+  const n = 6, per = 8;
+  const cols = Array.from({ length: n }, (_, c) => pool.slice(c * per, c * per + per));
+  const tile = (t) => `<a class="wt${t.cat ? ' hz' : ''}" tabindex="-1"><img src="${esc(t.poster)}" alt="" loading="lazy" decoding="async">${t.cat ? '<span class="hz-dot" aria-hidden="true"></span>' : ''}</a>`;
+  const durs = [150, 124, 168, 136, 176, 118];
+  head.insertAdjacentHTML('afterbegin', `<div class="head-paper" aria-hidden="true"></div><div class="head-deco" aria-hidden="true">
+    <div class="wall head-wall${still ? ' paused' : ''}">${cols.map((c, i) => {
+      const html = c.map(tile).join('');
+      return `<div class="wall-col${i % 2 ? ' down' : ''}" style="--dur:${durs[i]}s;--delay:-${((i * 37) % 100) / 100 * durs[i]}s">${html}${html}</div>`;
+    }).join('')}</div></div>`);
+  const wall = $('.head-wall', head);
+  // the wall fades in only past the end of the title and the lead, measured on their text
+  const clear = () => {
+    const r = document.createRange();
+    const right = Math.max(0, ...$$('h1, .lead, .kicker', head).map((el) => { r.selectNodeContents(el); return r.getBoundingClientRect().right; }));
+    head.style.setProperty('--clear', `${Math.round(right + 48)}px`);
+  };
+  clear();
+  addEventListener('resize', clear);
+  document.fonts?.ready.then(clear);
+  new IntersectionObserver(([e]) => wall.classList.toggle('paused', still || !e.isIntersecting)).observe(head);
 }
 
 function reveal() {
@@ -137,7 +173,7 @@ function heroWall() {
     const cat = t.cat && catById[t.cat];
     const video = t.video && !phone && !still ? `<video muted loop playsinline preload="none" data-src="${esc(t.video)}"></video>` : '';
     const label = cat ? `${cat.name} · ${t.instr || t.title}` : `Benign scene · ${t.title}`;
-    return `<a class="wt${cat ? ' hz' : ''}" tabindex="-1" href="#scenarios"><img src="${esc(t.poster)}" alt="" loading="lazy" decoding="async">${video}
+    return `<a class="wt${cat ? ' hz' : ''}" tabindex="-1" href="${link(cat ? `scenarios/?cat=${t.cat}` : 'scenarios/')}"><img src="${esc(t.poster)}" alt="" loading="lazy" decoding="async">${video}
       <span class="tag">${esc(cat ? cat.code : 'SCENE')}</span>${cat ? '<span class="hz-dot" aria-hidden="true"></span>' : ''}<span class="ttl">${esc(label)}</span></a>`;
   };
   const durs = [92, 76, 100, 84, 108, 72, 96, 80];
@@ -358,21 +394,134 @@ function attackPlayer() {
 
 /* ------------------------------------------------------------------ scenarios */
 
-function gallery() {
-  const el = $('#gallery');
-  const firstOf = (c) => S.tiles.find((t) => t.cat === c);
-  const card = (img, video, title, sub, tag, href) => `<a class="g-item"${href ? ` href="${esc(href)}" target="_blank" rel="noopener"` : ''}><div class="img"><img src="${esc(img)}" alt="" loading="lazy" decoding="async">${video ? `<video muted loop playsinline preload="none" data-src="${esc(video)}" aria-hidden="true"></video>` : ''}${tag ? `<span class="rel-tag">${tag}</span>` : ''}</div><b>${esc(title)}</b><span>${esc(sub)}</span></a>`;
-  const cats = S.categories.map((c) => { const t = firstOf(c.id); return t ? card(t.poster, t.video, c.name, c.desc, `<i aria-hidden="true">⚠</i>${esc(c.code)}`) : ''; }).join('');
-  const srcs = S.sources.map((s) => card(s.poster, s.video, s.name, `${s.n ? `${s.n} tasks · ` : ''}${s.body} · ${s.desc}`, '', s.url)).join('');
-  el.innerHTML = `<div class="suite-group"><h3 class="sg-head">Hazard categories<small>${S.categories.length} categories</small></h3><div class="gallery">${cats}</div></div>
-    <div class="suite-group"><h3 class="sg-head">Where the tasks come from<small>${S.sources.length} sources</small></h3><div class="gallery">${srcs}</div></div>`;
+const card = (img, video, title, sub, tag, href, ext) => `<a class="g-item"${href ? ` href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ''}` : ''}><div class="img"><img src="${esc(img)}" alt="" loading="lazy" decoding="async">${video ? `<video muted loop playsinline preload="none" data-src="${esc(video)}" aria-hidden="true"></video>` : ''}${tag ? `<span class="rel-tag">${tag}</span>` : ''}</div><b>${esc(title)}</b><span>${esc(sub)}</span></a>`;
+const catTag = (c) => `<i aria-hidden="true">⚠</i>${esc(c.code)}`;
+const unsafeOf = (c) => S.tiles.filter((t) => t.kind === 'unsafe' && t.cat === c);
+
+function hoverPlay(root) {
   const canHover = matchMedia('(hover: hover) and (pointer: fine)');
-  $$('.g-item', el).forEach((a) => {
+  $$('.g-item', root).forEach((a) => {
     const v = $('video[data-src]', a);
-    if (!v) return;
+    if (!v || a.dataset.hp) return;
+    a.dataset.hp = 1;
     a.addEventListener('pointerenter', (e) => { if (e.pointerType === 'touch' || !canHover.matches || still) return; if (!v.src) v.src = v.dataset.src; a.classList.add('playing'); v.play().catch(() => {}); });
     a.addEventListener('pointerleave', () => { a.classList.remove('playing'); v.pause(); });
   });
+}
+
+/** The hazard categories as cards, one scene each; on the home page they lead to the Scenarios page, filtered. */
+function gallery() {
+  const el = $('#gallery');
+  const cats = S.categories.map((c) => { const t = unsafeOf(c.id)[0]; return t ? card(t.poster, t.video, c.name, c.desc, catTag(c), `${link('scenarios/')}?cat=${c.id}`) : ''; }).join('');
+  el.innerHTML = `<div class="suite-group"><h3 class="sg-head">Hazard categories<small>${S.categories.length} categories</small></h3><div class="gallery">${cats}</div></div>`;
+  hoverPlay(el);
+}
+
+/** Every unsafe scene, filtered by category (?cat= in the address keeps the choice). */
+function sceneGrid() {
+  const el = $('#scene-grid');
+  let cur = new URLSearchParams(location.search).get('cat') || 'all';
+  if (cur !== 'all' && !catById[cur]) cur = 'all';
+  const all = S.tiles.filter((t) => t.kind === 'unsafe');
+  const paint = () => {
+    const shown = cur === 'all' ? all : unsafeOf(cur);
+    el.innerHTML = `<div class="chips sc-chips" role="group" aria-label="Hazard category">${[['all', 'All', all.length], ...S.categories.map((c) => [c.id, c.name, unsafeOf(c.id).length])].map(([id, l, n]) =>
+      `<button type="button" class="chip${id === cur ? ' on' : ''}" data-c="${id}" aria-pressed="${id === cur}">${esc(l)}<i>${n}</i></button>`).join('')}</div>
+      ${cur !== 'all' ? `<p class="lb-desc">${esc(catById[cur].desc)}</p>` : ''}
+      <div class="gallery sc-grid">${shown.map((t) => card(t.poster, t.video, t.title, t.instr, catTag(catById[t.cat]))).join('') || '<p class="muted">No scenes in this category yet.</p>'}</div>`;
+    hoverPlay(el);
+  };
+  el.addEventListener('click', (e) => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    cur = b.dataset.c;
+    const u = new URL(location.href); if (cur === 'all') u.searchParams.delete('cat'); else u.searchParams.set('cat', cur);
+    history.replaceState(null, '', u);
+    paint();
+  });
+  paint();
+}
+
+function sources() {
+  const el = $('#sources');
+  el.innerHTML = `<div class="gallery">${S.sources.map((s) => card(s.poster, s.video, s.name, `${s.n ? `${s.n} tasks · ` : ''}${s.body} · ${s.desc}`, '', s.url, true)).join('')}</div>`;
+  hoverPlay(el);
+}
+
+/* ------------------------------------------------------------------ hazards page */
+
+/** Each category: a scene, what it covers, how the models fare on it, and a few of its instructions. */
+function hazardList() {
+  const el = $('#hazard-list');
+  const ms = S.models.filter((m) => m.track === 'llm');
+  const worst = (m) => Math.max(...S.attacks.map((a) => (cell('cap', a.id, 'none')[m.id] || [0, 0])[1]));
+  el.innerHTML = S.categories.map((c) => {
+    const ts = unsafeOf(c.id), t = ts[0];
+    const vals = ms.map((m) => Math.min(100, Math.round(worst(m) * ((R.profile[m.id] || {})[c.id] || 1))));
+    const mean = Math.round(vals.reduce((a, b) => a + b, 0) / (vals.length || 1));
+    return `<article class="hz-row reveal" id="${c.id}">
+      ${t ? `<div class="g-item hz-img"><div class="img"><img src="${esc(t.poster)}" alt="" loading="lazy">${t.video ? `<video muted loop playsinline preload="none" data-src="${esc(t.video)}"></video>` : ''}<span class="rel-tag">${catTag(c)}</span></div></div>` : '<div></div>'}
+      <div class="hz-body"><h3>${esc(c.name)}</h3><p>${esc(c.desc)}</p>
+        <div class="hz-stat"><b>${mean}%</b><span>mean completed attack success, LLM / VLM agents, strongest attack</span></div>
+        ${ts.length ? `<p class="label">Example instructions</p><ul>${ts.slice(0, 4).map((x) => `<li>${esc(x.instr.length > 140 ? x.instr.slice(0, 138) + '…' : x.instr)}</li>`).join('')}</ul>` : ''}
+        <p class="note"><a href="${link('scenarios/')}?cat=${c.id}">All ${esc(c.name)} scenes →</a></p></div>
+    </article>`;
+  }).join('');
+  hoverPlay(el);
+}
+
+/* ------------------------------------------------------------------ leaderboard page */
+
+/** Models × attacks: completed attack success for every attack side by side, one track and defense at a time. */
+function attackMatrix() {
+  const el = $('#atk-matrix');
+  const st = { itf: 'cap', dfn: 'none' };
+  const paint = () => {
+    const itf = S.interfaces.find((i) => i.id === st.itf);
+    const ms = S.models.filter((m) => m.track === itf.track);
+    const mean = (m) => S.attacks.reduce((a, x) => a + ((cell(st.itf, x.id, st.dfn)[m.id] || [0, 0])[1]), 0) / S.attacks.length;
+    ms.sort((a, b) => mean(a) - mean(b));
+    el.innerHTML = `<div class="hm-top"><div class="seg" data-k="itf" role="group" aria-label="Interface">${S.interfaces.map((i) => `<button type="button" data-v="${i.id}" class="${i.id === st.itf ? 'on' : ''}">${esc(i.name)}</button>`).join('')}</div>
+        <div class="seg" data-k="dfn" role="group" aria-label="Defense">${S.defenses.map((d) => `<button type="button" data-v="${d.id}" class="${d.id === st.dfn ? 'on' : ''}">${esc(d.name)}</button>`).join('')}</div></div>
+      <div class="hm-grid" style="--n:${S.attacks.length + 1}">
+        <span></span>${S.attacks.map((a) => `<span class="hm-h"><b>${esc(a.access)}</b>${esc(a.name)}</span>`).join('')}<span class="hm-h"><b>mean</b>All attacks</span>
+        ${ms.map((m, r) => `<span class="hm-m">${markOf(m)}<b>${esc(m.name)}</b></span>${S.attacks.map((a, k) => { const x = (cell(st.itf, a.id, st.dfn)[m.id] || [0, 0])[1]; return `<span class="hm-c${x >= 55 ? ' hi' : ''}" style="--v:${x};--d:${(r * 6 + k) * 12}ms" title="${esc(m.name)} · ${esc(a.name)}: ${x}%"><b>${x}</b></span>`; }).join('')}<span class="hm-c mean" style="--v:${Math.round(mean(m))};--d:0ms"><b>${Math.round(mean(m))}</b></span>`).join('')}
+      </div>`;
+    el.classList.remove('lit'); void el.offsetWidth; requestAnimationFrame(() => el.classList.add('lit'));
+  };
+  el.addEventListener('click', (e) => { const b = e.target.closest('.seg button'); if (!b) return; st[b.closest('.seg').dataset.k] = b.dataset.v; paint(); });
+  paint();
+}
+
+function rules() {
+  const R6 = [
+    ['Ranked by harm done', 'Rows are ordered by completed attack success: how often the harm actually happened. Lower is safer.'],
+    ['Attempts count too', 'The hatched bar shows harm attempted but not completed, often only because the robot was clumsy.'],
+    ['Utility beside safety', 'Benign-twin success sits next to every score, so a model that refuses everything shows it.'],
+    ['Two tracks, apart', 'LLM / VLM agents and VLA policies differ in what they can do (refuse in words or not), so they are ranked apart.'],
+    ['One setting at a time', 'Each attack × defense × interface is its own board: the same tasks, the same budget, the same judge.'],
+    ['A lower bound', 'Attack success is what our attacks found within budget. A stronger attacker can only find more.'],
+  ];
+  $('#rules').innerHTML = `<dl>${R6.map(([t, d]) => `<div><dt>${esc(t)}</dt><dd>${esc(d)}</dd></div>`).join('')}</dl>`;
+}
+
+/* ------------------------------------------------------------------ attacks page */
+
+function attackCatalog() {
+  const el = $('#atk-catalog');
+  const llm = S.models.filter((m) => m.track === 'llm'), vla = S.models.filter((m) => m.track === 'vla');
+  const avg = (itf, a, d, ms) => Math.round(ms.reduce((s, m) => s + ((cell(itf, a, d)[m.id] || [0, 0])[1]), 0) / (ms.length || 1));
+  el.innerHTML = S.attacks.map((a, i) => {
+    const bars = [['LLM / VLM', avg('cap', a.id, 'none', llm), avg('cap', a.id, 'constitution', llm)], ['VLA', avg('native', a.id, 'none', vla), avg('native', a.id, 'constitution', vla)]];
+    return `<article class="ac-card reveal" style="--i:${i}"><div class="ac-top"><span class="lp-n">${String(i + 1).padStart(2, '0')}</span><span class="ac-acc">${esc(a.access)}</span></div>
+      <h3>${esc(a.name)}</h3><p>${esc(a.desc)}</p>
+      <div class="ac-bars">${bars.map(([l, x, y]) => `<div class="ac-b"><span>${l}</span><span class="rt-mini"><i style="--w:${x}%"></i></span><b>${x}%</b><span class="rt-mini dfn"><i style="--w:${y}%"></i></span><b class="dfn">${y}%</b></div>`).join('')}</div>
+      <p class="ac-key"><span><i></i>no defense</span><span><i class="dfn"></i>with constitution</span><span>· mean completed attack success</span></p></article>`;
+  }).join('');
+}
+
+function defenses() {
+  $('#defense-list').innerHTML = `<dl>${S.defenses.map((d) => `<div><dt>${esc(d.name.replace('+ ', ''))}</dt><dd>${esc(d.desc || 'The model as shipped: its own safety training, no extra prompt or filter.')}</dd></div>`).join('')}
+    <div><dt>More to come</dt><dd>Input filters, action-level guardrails and a low-level safety layer, each scored by what it adds on top of the model.</dd></div></dl>`;
 }
 
 /* ------------------------------------------------------------------ the loop */
@@ -388,6 +537,9 @@ function loop() {
   ];
   $('#loop').innerHTML = `<div class="lp-row">${steps.map(([ic, t, d, k], i) => `<div class="lp-step ${k}" style="--i:${i}"><span class="lp-n">${String(i + 1).padStart(2, '0')}</span>${svg(ic)}<b>${esc(t)}</b><small>${esc(d)}</small></div>${i < steps.length - 1 ? '<span class="lp-arrow" aria-hidden="true"><i></i></span>' : ''}`).join('')}</div>
     <div class="lp-back" aria-hidden="true"><span>adaptive attacks read the judge and try again</span></div>`;
+}
+
+function metrics() {
   const M = [
     ['ASR · attempted', 'Share of unsafe tasks where the model tried to do the harm: code, skill calls or arm motion toward it.'],
     ['ASR · completed', 'Share where the harm actually happened in the simulator, by the scene’s own predicate.'],
@@ -396,11 +548,25 @@ function loop() {
     ['Intent (LLM / VLM)', 'Whether the model’s stated reasoning recognises the hazard, judged apart from its actions.'],
   ];
   $('#metrics').innerHTML = `<p class="label">What we report</p><dl>${M.map(([t, d]) => `<div><dt>${esc(t)}</dt><dd>${esc(d)}</dd></div>`).join('')}</dl>`;
+}
+
+function ways() {
   $('#ways').innerHTML = `<p class="cw-lead">The same unsafe task reaches a robot three ways. LLMs and VLMs drive it through code or skills; VLAs drive it directly. We report the two families on separate boards.</p>
     <div class="cw-head"><span></span><span>How the model reaches the robot</span><span></span></div>
     ${S.interfaces.map((i) => `<details class="cw-row"><summary><span class="cw-n">${esc(i.name)}</span><span class="cw-f">${i.flow.map((f) => `<b>${esc(f)}</b>`).join('<i>→</i>')}</span><span class="cw-x" aria-hidden="true"></span></summary><p>${esc(i.desc)}</p></details>`).join('')}`;
+}
+
+function trust() {
   $('#trust').innerHTML = S.honest.map((h) => `<li tabindex="0"><span class="tr-ic">${svg(h.icon)}</span><b>${esc(h.title)}</b><span class="tip" role="tooltip">${esc(h.tip)}</span></li>`).join('');
 }
 
-chrome(); hero(); heroWall(); bigNumbers(); leaderboard(); heatmap(); attackPlayer(); gallery(); loop(); reveal();
+/* ------------------------------------------------------------------ fill the page */
+
+chrome(); headWall();
+// a section is filled when its element is on this page
+const SECTIONS = { 'hero-run': hero, wall: heroWall, bignums: bigNumbers, lbh: leaderboard, heatmap, atk: attackPlayer, gallery, 'scene-grid': sceneGrid,
+  sources, 'hazard-list': hazardList, 'atk-matrix': attackMatrix, rules, 'atk-catalog': attackCatalog, 'defense-list': defenses, loop, metrics, ways, trust };
+Object.entries(SECTIONS).forEach(([id, fill]) => { if (document.getElementById(id)) fill(); });
+$$('[data-href]').forEach((a) => { a.href = link(a.dataset.href); });
+reveal();
 })();

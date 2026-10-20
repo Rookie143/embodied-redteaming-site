@@ -22,7 +22,8 @@ No build step. Plain HTML, CSS and JS; it also opens from `file://`.
 | `data/site.js` | All text, the models, attacks, defenses, interfaces, hazard categories, scenario media, the attack demo. Strict JSON after `window.SITE =`. |
 | `data/results.js` | Every number in the leaderboard and heatmap. |
 | `scripts/gen_results.py` | Writes `data/results.js` from a few knobs per model (refusal, robustness, skill, benign success). Placeholder only. |
-| `assets/app.js` | The page: hero wall, typed command, counters, leaderboard, heatmap, attack player, gallery, loop figure. |
+| `index.html`, `leaderboard/`, `hazards/`, `attacks/`, `scenarios/`, `method/` | One page each. The home page shows a summary of every section and links to the full page. |
+| `assets/app.js` | Fills whichever sections a page has: hero wall, counters, leaderboard, attack matrix, heatmap, hazard rows, attack player and cards, scene grid, loop figure. |
 | `assets/exam.css` | The Embodied First Exam stylesheet, unchanged (MIT, see below). |
 | `assets/redteam.css` | What this page adds: harm/safe colours, stacked bars, heatmap, attack player, loop figure. |
 
