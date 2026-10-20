@@ -16,7 +16,7 @@ const GH = S.meta.github;
 const PAGE = document.body.dataset.page || 'home';
 const ROOT = document.body.dataset.root || '';
 const link = (p = '') => ROOT + p || './';
-const PAGES = [['leaderboard', 'Leaderboard'], ['hazards', 'Hazards'], ['attacks', 'Attacks'], ['scenarios', 'Scenarios'], ['method', 'Method']];
+const PAGES = [['leaderboard', 'Leaderboard'], ['compare', 'Compare'], ['hazards', 'Hazards'], ['attacks', 'Attacks'], ['scenarios', 'Scenarios'], ['method', 'Method']];
 
 const ICON = {
   doc: '<path d="M6 2.5h8l4 4v15H6z"/><path d="M14 2.5v4h4M9 11h6M9 14.5h6M9 18h4"/>',
@@ -46,7 +46,7 @@ const MENU = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 function chrome() {
   $('#nav').outerHTML = `<nav class="nav always" aria-label="Sections">
     <a class="wordmark" href="${link()}"><span class="mark" aria-hidden="true">${MARK}</span>${esc(S.meta.name)}</a>
-    <div class="nav-links">${PAGES.map(([p, l]) => `<a href="${link(`${p}/`)}"${p === PAGE ? ' class="active" aria-current="page"' : ''}>${l}</a>`).join('')}</div>
+    <div class="nav-links">${PAGES.map(([p, l]) => `<a href="${link(`${p}/`)}"${p === PAGE || (PAGE === 'model' && p === 'leaderboard') ? ' class="active" aria-current="page"' : ''}>${l}</a>`).join('')}</div>
     <a class="icon-btn gh-btn${GH ? '' : ' soon'}"${GH ? ` href="${esc(GH)}"` : ' aria-disabled="true"'} aria-label="GitHub" title="${GH ? 'GitHub' : 'GitHub: coming soon'}">${GITHUB}</a>
     <button class="icon-btn menu-btn" id="menu-toggle" type="button" aria-label="Menu" aria-expanded="false">${MENU}</button>
     <button class="icon-btn" id="theme-toggle" type="button" aria-label="Switch between day and night">${MOON}${SUN}</button>
@@ -231,64 +231,105 @@ function bigNumbers() {
 
 const org = (m) => S.orgs[m.org] || { name: m.org };
 const markOf = (m) => { const o = org(m); return `<span class="mk${o.logo ? '' : ' mono'}" title="${esc(o.name)}">${o.logo || esc(o.mono || o.name[0])}</span>`; };
-const cell = (itf, atk, dfn) => R.cells[`${itf}|${atk}|${dfn}`] || {};
+const LEVELS = (S.levels || []).map((l) => l.id);
+/** One setting's numbers per model: [attempted, completed, benign, queries]; level 'all' is the mean over the levels. */
+const cell = (itf, atk, dfn, lvl = 'all') => {
+  if (lvl !== 'all' || !LEVELS.length) return R.cells[LEVELS.length ? `${itf}|${atk}|${dfn}|${lvl}` : `${itf}|${atk}|${dfn}`] || {};
+  const rows = LEVELS.map((l) => R.cells[`${itf}|${atk}|${dfn}|${l}`] || {}), out = {};
+  Object.keys(rows[0] || {}).forEach((id) => { out[id] = [0, 1, 2, 3].map((j) => Math.round(rows.reduce((s, r) => s + ((r[id] || [])[j] || 0), 0) / rows.length)); });
+  return out;
+};
+const itfOf = (m) => (m.track === 'llm' ? 'cap' : 'native');
+const modelHref = (m) => link(`model/?id=${encodeURIComponent(m.id)}`);
+const compareHref = (a, b) => link(`compare/?a=${encodeURIComponent(a)}${b ? `&b=${encodeURIComponent(b)}` : ''}`);
+/** The headline number behind the star rating: mean completed attack success over every attack and level, no defense. */
+const scoreOf = (m, itf = itfOf(m)) => Math.round(S.attacks.reduce((s, a) => s + ((cell(itf, a.id, 'none')[m.id] || [0, 0])[1]), 0) / S.attacks.length);
+const ratingOf = (m) => { const x = scoreOf(m); return { score: x, ...(S.rating.stars.find((r) => x < r.max) || S.rating.stars[S.rating.stars.length - 1]) }; };
+const starsHtml = (n, cls = '') => `<span class="stars st${n} ${cls}" role="img" aria-label="${n} of 5 stars">${'★'.repeat(n)}<i>${'★'.repeat(5 - n)}</i></span>`;
+/** Every model of a track, safest first by its rating score. */
+const ranked = (track) => S.models.filter((m) => m.track === track).sort((a, b) => scoreOf(a) - scoreOf(b));
+/** One row per company: its safest model stands for it. */
+const companies = (track) => {
+  const by = new Map();
+  ranked(track).forEach((m) => { if (!by.has(m.org)) by.set(m.org, []); by.get(m.org).push(m); });
+  return [...by.entries()].map(([o, ms]) => ({ org: o, best: ms[0], models: ms }));
+};
 
 function leaderboard() {
   const el = $('#lbh');
-  const st = { track: 'llm', itf: 'cap', atk: 'robopair', dfn: 'none', open: null };
+  const st = { view: 'models', track: 'llm', itf: 'cap', atk: 'robopair', dfn: 'none', lvl: 'all', open: null };
   const seg = (name, opts, cur, label) => `<div class="seg" data-k="${name}" role="group" aria-label="${label}">${opts.map(([v, l]) =>
     `<button type="button" data-v="${v}" aria-pressed="${v === cur}" class="${v === cur ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   const controls = () => {
     const itfs = S.interfaces.filter((i) => i.track === st.track);
     return `<div class="lbh-top rt-top">
+      ${seg('view', [['models', 'Models'], ['companies', 'Companies']], st.view, 'View')}
       ${seg('track', [['llm', 'LLM / VLM agents'], ['vla', 'VLA policies']], st.track, 'Track')}
       ${itfs.length > 1 ? seg('itf', itfs.map((i) => [i.id, i.name]), st.itf, 'Robot interface') : `<span class="rt-fixed">${esc(itfs[0].name)}</span>`}
     </div>
     <div class="lbh-top rt-top rt-sub">
       <span class="label">Attack</span>${seg('atk', S.attacks.map((a) => [a.id, a.name]), st.atk, 'Attack')}
       <span class="label">Defense</span>${seg('dfn', S.defenses.map((d) => [d.id, d.name]), st.dfn, 'Defense')}
+      ${LEVELS.length ? `<span class="label">Level</span>${seg('lvl', [['all', 'All'], ...S.levels.map((l) => [l.id, l.name])], st.lvl, 'Task level')}` : ''}
     </div>
     <p class="lb-desc" id="lbh-desc"></p>`;
   };
   el.innerHTML = `<div class="rt-controls"></div>
-    <div class="lbh-chart"><div class="lbh-ax"><div class="lbh-axis"><span></span><span class="lbh-ticks" aria-hidden="true">${[0, 25, 50, 75, 100].map((t) => `<i style="left:${t}%">${t}%</i>`).join('')}</span><span class="lbh-n">ASR ↓</span><span class="lbh-n">Benign ↑</span></div></div>
+    <div class="lbh-chart"><div class="lbh-ax"><div class="lbh-axis"><span></span><span class="lbh-n rt-sh">Rating</span><span class="lbh-ticks" aria-hidden="true">${[0, 25, 50, 75, 100].map((t) => `<i style="left:${t}%">${t}%</i>`).join('')}</span><span class="lbh-n">ASR ↓</span><span class="lbh-n">Benign ↑</span></div></div>
     <div class="lbh-rows"></div></div>
-    <div class="rt-key"><span><i class="k-c"></i>Harm completed</span><span><i class="k-a"></i>Harm attempted, not completed</span><span><i class="k-b"></i>Benign twin solved</span><span class="muted">Ranked by completed attack success, lowest first. Click a model for its hazard profile.</span></div>`;
+    <div class="rt-key"><span><i class="k-c"></i>Harm completed</span><span><i class="k-a"></i>Harm attempted, not completed</span><span><i class="k-b"></i>Benign twin solved</span><span class="muted">Ranked by completed attack success in this setting, lowest first. Stars rate every attack and level together. Click a row for more.</span></div>`;
   const paintControls = () => {
     $('.rt-controls', el).innerHTML = controls();
     const a = S.attacks.find((x) => x.id === st.atk), d = S.defenses.find((x) => x.id === st.dfn), i = S.interfaces.find((x) => x.id === st.itf);
-    $('#lbh-desc').innerHTML = `<b>${esc(a.name)}.</b> ${esc(a.desc)} ${d.desc ? `<b>${esc(d.name.replace('+ ', ''))}.</b> ${esc(d.desc)}` : ''} <span class="muted">Interface: ${esc(i.name)} · ${int(S.totals.unsafe_tasks)} unsafe tasks.</span>`;
+    const l = (S.levels || []).find((x) => x.id === st.lvl);
+    $('#lbh-desc').innerHTML = `<b>${esc(a.name)}.</b> ${esc(a.desc)} ${d.desc ? `<b>${esc(d.name.replace('+ ', ''))}.</b> ${esc(d.desc)}` : ''} <span class="muted">Interface: ${esc(i.name)} · ${l ? `${esc(l.name)}: ${esc(l.desc)}` : 'all levels'} · ${int(S.totals.unsafe_tasks)} unsafe tasks.${st.view === 'companies' ? ' Each company is shown by its safest model.' : ''}</span>`;
   };
   const rowsEl = $('.lbh-rows', el);
-  const row = (m, v, k) => {
-    const [att, comp, ben, q] = v;
-    return `<button type="button" class="lbh-row${st.open === m.id ? ' on' : ''}" data-id="${m.id}" style="--i:${k}" aria-expanded="${st.open === m.id}" aria-label="${esc(m.name)}, place ${k + 1}: harm completed in ${comp}% of unsafe tasks, attempted in ${att}%">
+  const row = (id, m, name, sub, v, k) => {
+    const [att, comp, ben] = v, r = ratingOf(m);
+    return `<button type="button" class="lbh-row${st.open === id ? ' on' : ''}" data-id="${esc(id)}" style="--i:${k}" aria-expanded="${st.open === id}" aria-label="${esc(name)}, place ${k + 1}: harm completed in ${comp}% of unsafe tasks, attempted in ${att}%; rated ${r.stars} of 5">
       <span class="rk r${k + 1}">${k + 1}</span>${markOf(m)}
-      <span class="lbh-name"><span class="lbh-nl"><b>${esc(m.name)}</b><span class="lbh-set">${esc(org(m).name)} · ${m.access === 'open' ? 'open weights' : 'API'}</span></span></span>
+      <span class="lbh-name"><span class="lbh-nl"><b>${esc(name)}</b><span class="lbh-set">${esc(sub)}</span></span></span>
+      <span class="rt-star">${starsHtml(r.stars)}</span>
       <span class="lbh-track"><span class="lbh-a" style="--w:${att}%"></span><span class="lbh-s" style="--w:${comp}%"></span></span>
       <span class="lbh-val"><b>${comp}<small>%</small></b><em>tried ${att}%</em></span>
       <span class="lbh-ben" style="--b:${ben}%"><i></i><b>${ben}%</b></span>
-    </button>${st.open === m.id ? detail(m, v) : ''}`;
+    </button>${st.open === id ? (id.startsWith('org:') ? orgDetail(id.slice(4)) : detail(m, v)) : ''}`;
   };
   const detail = (m, v) => {
-    const [att, comp, ben, q] = v, prof = R.profile[m.id] || {};
-    const worst = S.attacks.map((a) => [a, (cell(st.itf, a.id, st.dfn)[m.id] || [0, 0])[1]]).sort((x, y) => y[1] - x[1]);
+    const [att, comp, ben, q] = v, prof = R.profile[m.id] || {}, r = ratingOf(m);
+    const worst = S.attacks.map((a) => [a, (cell(st.itf, a.id, st.dfn, st.lvl)[m.id] || [0, 0])[1]]).sort((x, y) => y[1] - x[1]);
+    const rival = ranked(m.track).find((x) => x.id !== m.id && x.org !== m.org);
     return `<div class="rt-detail">
       <div class="rt-dcol"><p class="label">By hazard category · completed</p>
         ${S.categories.map((c) => { const x = Math.min(100, Math.round(comp * (prof[c.id] || 1))); return `<div class="rt-cat"><span>${esc(c.name)}</span><span class="rt-mini"><i style="--w:${x}%"></i></span><b>${x}%</b></div>`; }).join('')}</div>
       <div class="rt-dcol"><p class="label">By attack · completed</p>
         ${worst.map(([a, x]) => `<div class="rt-cat${a.id === st.atk ? ' cur' : ''}"><span>${esc(a.name)}</span><span class="rt-mini"><i style="--w:${x}%"></i></span><b>${x}%</b></div>`).join('')}</div>
       <dl class="rt-stats">
-        <div><dt>${att}%</dt><dd>ASR, attempted</dd></div><div><dt>${comp}%</dt><dd>ASR, completed</dd></div>
+        <div><dt>${starsHtml(r.stars)}</dt><dd>${esc(r.label)} · ${r.score}% overall</dd></div><div><dt>${comp}%</dt><dd>ASR, completed</dd></div>
         <div><dt>${ben}%</dt><dd>Benign success</dd></div><div><dt>${q}</dt><dd>Median queries to break</dd></div>
-      </dl></div>`;
+      </dl>
+      <p class="rt-links"><a class="btn primary" href="${modelHref(m)}">Full safety report <span class="arr">→</span></a>${rival ? `<a class="btn" href="${compareHref(m.id, rival.id)}">Compare with ${esc(rival.name)}</a>` : ''}</p></div>`;
+  };
+  const orgDetail = (o) => {
+    const v = cell(st.itf, st.atk, st.dfn, st.lvl);
+    const ms = ranked(st.track).filter((m) => m.org === o && v[m.id]);
+    return `<div class="rt-detail rt-org"><div class="rt-dcol"><p class="label">Every ${esc((S.orgs[o] || {}).name || o)} model on this board</p>
+      ${ms.map((m) => `<a class="rt-cat rt-om" href="${modelHref(m)}"><span>${esc(m.name)}</span><span class="rt-mini"><i style="--w:${v[m.id][1]}%"></i></span><b>${v[m.id][1]}%</b>${starsHtml(ratingOf(m).stars)}</a>`).join('')}</div></div>`;
   };
   const paintRows = (animate) => {
-    const v = cell(st.itf, st.atk, st.dfn);
-    const ms = S.models.filter((m) => m.track === st.track && v[m.id]).sort((a, b) => v[a.id][1] - v[b.id][1] || v[a.id][0] - v[b.id][0]);
+    const v = cell(st.itf, st.atk, st.dfn, st.lvl);
+    let items = S.models.filter((m) => m.track === st.track && v[m.id]).map((m) => [m.id, m, m.name, `${org(m).name} · ${m.access === 'open' ? 'open weights' : 'API'}`, v[m.id]]);
+    if (st.view === 'companies') {
+      const best = new Map();
+      items.forEach((it) => { const o = it[1].org; if (!best.has(o) || it[4][1] < best.get(o)[4][1]) best.set(o, it); });
+      items = [...best.values()].map(([, m, , , vv]) => { const n = S.models.filter((x) => x.org === m.org && x.track === st.track).length; return [`org:${m.org}`, m, org(m).name, `best: ${m.name}${n > 1 ? ` · ${n} models` : ''}`, vv]; });
+    }
+    items.sort((a, b) => a[4][1] - b[4][1] || a[4][0] - b[4][0]);
     // FLIP: rows that stay slide from their old place to the new one
     const before = new Map($$('.lbh-row', rowsEl).map((r) => [r.dataset.id, r.getBoundingClientRect().top]));
-    rowsEl.innerHTML = ms.map((m, k) => row(m, v[m.id], k)).join('');
+    rowsEl.innerHTML = items.map(([id, m, name, sub, vv], k) => row(id, m, name, sub, vv, k)).join('');
+    el.classList.toggle('by-org', st.view === 'companies');
     if (!animate || still) return;
     $$('.lbh-row', rowsEl).forEach((r) => {
       const was = before.get(r.dataset.id);
@@ -317,14 +358,38 @@ function leaderboard() {
       if (st[k] === v) return;
       st[k] = v;
       if (k === 'track') st.itf = S.interfaces.find((i) => i.track === v).id;
-      if (k === 'track') st.open = null;
+      if (k === 'track' || k === 'view') st.open = null;
       paintControls(); repaint();
       return;
     }
+    if (e.target.closest('a')) return;
     const r = e.target.closest('.lbh-row');
     if (r) { st.open = st.open === r.dataset.id ? null : r.dataset.id; paintRows(false); }
   });
   paintControls(); paintRows(false);
+}
+
+/* ------------------------------------------------------------------ the companies board */
+
+/** Big cards, one per company, safest first: its best model, its stars, its number. "Whose robot brain is safest?" */
+function vendors() {
+  const el = $('#vendors');
+  let track = 'llm';
+  const paint = () => {
+    const cs = companies(track).sort((a, b) => scoreOf(a.best) - scoreOf(b.best));
+    el.innerHTML = `<div class="hm-top"><div class="seg" role="group" aria-label="Track">${[['llm', 'LLM / VLM agents'], ['vla', 'VLA policies']].map(([v, l]) => `<button type="button" data-v="${v}" class="${v === track ? 'on' : ''}" aria-pressed="${v === track}">${l}</button>`).join('')}</div>
+      <p class="lb-desc">${esc(S.rating.basis)} Each company is rated by its safest model.</p></div>
+      <div class="vd-grid">${cs.map((c, i) => { const r = ratingOf(c.best), o = S.orgs[c.org] || { name: c.org }; return `<a class="vd-card s${r.stars}" href="${modelHref(c.best)}" style="--i:${i}">
+        <span class="vd-rank">#${i + 1}</span>
+        <span class="vd-logo${o.logo ? '' : ' mono'}">${o.logo || esc(o.mono || o.name[0])}</span>
+        <b class="vd-org">${esc(o.name)}</b>
+        ${starsHtml(r.stars, 'big')}<span class="vd-lab">${esc(r.label)}</span>
+        <span class="vd-num"><b>${r.score}<small>%</small></b> harm completed</span>
+        <span class="vd-best">best model: ${esc(c.best.name)}${c.models.length > 1 ? ` · ${c.models.length} rated` : ''}</span></a>`; }).join('')}</div>`;
+    el.classList.remove('lit'); void el.offsetWidth; requestAnimationFrame(() => el.classList.add('lit'));
+  };
+  el.addEventListener('click', (e) => { const b = e.target.closest('.seg button'); if (b && b.dataset.v !== track) { track = b.dataset.v; paint(); } });
+  paint();
 }
 
 /* ------------------------------------------------------------------ heatmap */
@@ -560,11 +625,193 @@ function trust() {
   $('#trust').innerHTML = S.honest.map((h) => `<li tabindex="0"><span class="tr-ic">${svg(h.icon)}</span><b>${esc(h.title)}</b><span class="tip" role="tooltip">${esc(h.tip)}</span></li>`).join('');
 }
 
+/* ------------------------------------------------------------------ model report */
+
+const modelFromURL = (key = 'id') => modelById[new URLSearchParams(location.search).get(key)];
+/** Completed attack success per hazard category: the model's overall score shaped by its category profile. */
+const byCategory = (m) => S.categories.map((c) => [c, Math.min(100, Math.round(scoreOf(m) * ((R.profile[m.id] || {})[c.id] || 1)))]);
+const byAttack = (m, dfn = 'none') => S.attacks.map((a) => [a, (cell(itfOf(m), a.id, dfn)[m.id] || [0, 0])[1]]);
+const byLevel = (m) => (S.levels || []).map((l) => [l, Math.round(S.attacks.reduce((s, a) => s + ((cell(itfOf(m), a.id, 'none', l.id)[m.id] || [0, 0])[1]), 0) / S.attacks.length)]);
+const benignOf = (m) => Math.round(S.attacks.reduce((s, a) => s + ((cell(itfOf(m), a.id, 'none')[m.id] || [0, 0, 0])[2]), 0) / S.attacks.length);
+/** The scene to show as a model's worst failure: one from its worst category (a placeholder until episodes are logged). */
+const worstScene = (m) => { const [c] = byCategory(m).sort((a, b) => b[1] - a[1])[0]; return { cat: c, tile: unsafeOf(c.id)[0] || S.tiles[0] }; };
+const bars = (rows, cls = '') => rows.map(([lab, x, sub]) => `<div class="rt-cat ${cls}"><span>${esc(lab)}${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="rt-mini"><i style="--w:${x}%"></i></span><b>${x}%</b></div>`).join('');
+
+function report() {
+  const el = $('#report');
+  const m = modelFromURL() || ranked('llm')[0];
+  const o = org(m), r = ratingOf(m), rk = ranked(m.track), place = rk.findIndex((x) => x.id === m.id) + 1;
+  const trackName = m.track === 'llm' ? 'LLM / VLM agents' : 'VLA policies';
+  const w = worstScene(m), wc = byCategory(m).find(([c]) => c.id === w.cat.id)[1];
+  const rival = rk.find((x) => x.id !== m.id && x.org !== m.org);
+  document.title = `${m.name} · Safety report · ${S.meta.name}`;
+  $('.page-head .kicker').textContent = `Safety report · ${o.name}`;
+  $('.page-head h1').textContent = m.name;
+  $('.page-head .lead').innerHTML = `#${place} of ${rk.length} ${trackName} · ${m.access === 'open' ? 'open weights' : 'API'} · tested through ${esc(S.interfaces.find((i) => i.id === itfOf(m)).name)}`;
+  el.innerHTML = `<div class="rp-head s${r.stars}">
+      <span class="rp-logo${o.logo ? '' : ' mono'}">${o.logo || esc(o.mono || o.name[0])}</span>
+      <div class="rp-score">${starsHtml(r.stars, 'big')}<b>${esc(r.label)}</b><span>${esc(S.rating.basis)}</span></div>
+      <div class="rp-big"><b>${r.score}<small>%</small></b><span>of unsafe tasks ended in harm, across ${S.attacks.length} attacks${LEVELS.length ? ` and ${LEVELS.length} levels` : ''}</span></div>
+      <div class="rp-big safe"><b>${benignOf(m)}<small>%</small></b><span>of benign twins solved: what it still gets done</span></div>
+      <div class="rp-act"><button type="button" class="btn primary" id="share-btn">Share card <span class="arr">↗</span></button>${rival ? `<a class="btn" href="${compareHref(m.id, rival.id)}">Compare</a>` : ''}<a class="btn" href="${link('leaderboard/')}">Leaderboard</a></div>
+    </div>
+    <div class="rp-grid">
+      <figure class="rp-fail"><div class="atk-media"><img src="${esc(w.tile.poster)}" alt="">${still || !w.tile.video ? '' : `<video muted loop playsinline autoplay src="${esc(w.tile.video)}"></video>`}
+        <span class="atk-goal"><span class="label">Worst category · ${esc(w.cat.name)} · ${wc}% harm</span>${esc(w.tile.instr || w.tile.title)}</span></div>
+        <figcaption class="muted">The scene type ${esc(m.name)} fails most. The episode recording is a placeholder until runs are logged.</figcaption></figure>
+      <div class="rp-cols">
+        <div><p class="label">By hazard category</p>${bars(byCategory(m).map(([c, x]) => [c.name, x]))}</div>
+        <div><p class="label">By attack · no defense → with constitution</p>${bars(byAttack(m).map(([a, x], i) => [a.name, x, `→ ${byAttack(m, 'constitution')[i][1]}% with constitution`]))}</div>
+        ${LEVELS.length ? `<div><p class="label">By task level</p>${bars(byLevel(m).map(([l, x]) => [l.name, x, l.desc]))}</div>` : ''}
+      </div>
+    </div>`;
+  $('#share-btn').addEventListener('click', () => shareDialog(m));
+  comments(`model:${m.id}`, `${m.name}: is it safe?`);
+}
+
+/* ------------------------------------------------------------------ compare */
+
+function compare() {
+  const el = $('#compare');
+  const q = new URLSearchParams(location.search);
+  let A = modelById[q.get('a')] || ranked('llm')[0], B = modelById[q.get('b')] || ranked('llm').find((x) => x.org !== A.org) || ranked('llm')[1];
+  const opt = (sel) => ['llm', 'vla'].map((t) => `<optgroup label="${t === 'llm' ? 'LLM / VLM agents' : 'VLA policies'}">${ranked(t).map((m) => `<option value="${m.id}"${m.id === sel.id ? ' selected' : ''}>${esc(m.name)} · ${esc(org(m).name)}</option>`).join('')}</optgroup>`).join('');
+  const side = (m) => { const o = org(m), r = ratingOf(m); return `<div class="cp-side s${r.stars}"><span class="rp-logo${o.logo ? '' : ' mono'}">${o.logo || esc(o.mono || o.name[0])}</span><span class="cp-org">${esc(o.name)}</span><b class="cp-name">${esc(m.name)}</b>${starsHtml(r.stars, 'big')}<span class="cp-score"><b>${r.score}%</b> harm completed</span><a class="note" href="${modelHref(m)}">Safety report →</a></div>`; };
+  const paint = () => {
+    const rows = [
+      ['Overall', scoreOf(A), scoreOf(B), 'low'],
+      ...S.categories.map((c, i) => [c.name, byCategory(A)[i][1], byCategory(B)[i][1], 'low']),
+      ...S.attacks.map((a, i) => [`Attack · ${a.name}`, byAttack(A)[i][1], byAttack(B)[i][1], 'low']),
+      ...(S.levels || []).map((l, i) => [`Level · ${l.name}`, byLevel(A)[i][1], byLevel(B)[i][1], 'low']),
+      ['Benign success', benignOf(A), benignOf(B), 'high'],
+    ];
+    const cats = rows.slice(1, 1 + S.categories.length), nC = S.categories.length;
+    const aWin = scoreOf(A) <= scoreOf(B), W = aWin ? A : B, L = aWin ? B : A;
+    const k = cats.filter(([, a, b]) => (aWin ? a < b : b < a)).length;
+    const verdict = scoreOf(A) === scoreOf(B) ? `Dead even overall: ${scoreOf(A)}% each.`
+      : `${esc(W.name)} is safer than ${esc(L.name)}: ${scoreOf(W)}% vs ${scoreOf(L)}% harm overall, and safer in ${k} of ${nC} hazard categories.`;
+    el.innerHTML = `<div class="cp-pick"><select id="cp-a" aria-label="First model">${opt(A)}</select><span class="cp-vs">VS</span><select id="cp-b" aria-label="Second model">${opt(B)}</select></div>
+      <div class="cp-head">${side(A)}<span class="cp-vs big">VS</span>${side(B)}</div>
+      <p class="cp-verdict">${verdict}</p>
+      ${A.track !== B.track ? '<p class="lb-desc muted">Different tracks: an LLM / VLM agent and a VLA policy are tested through different interfaces, so read this with care.</p>' : ''}
+      <div class="cp-rows">${rows.map(([lab, a, b, dir]) => { const wa = dir === 'low' ? a < b : a > b, wb = dir === 'low' ? b < a : b > a; return `<div class="cp-row${dir === 'high' ? ' safe' : ''}">
+        <b class="${wa ? 'win' : ''}">${a}%</b><span class="cp-bar l"><i style="--w:${a}%"></i></span><span class="cp-lab">${esc(lab)}</span><span class="cp-bar r"><i style="--w:${b}%"></i></span><b class="${wb ? 'win' : ''}">${b}%</b></div>`; }).join('')}</div>
+      <p class="rt-key"><span><i class="k-c"></i>Harm completed, lower is safer</span><span><i class="k-b"></i>Benign success, higher is better</span><span class="muted">✓ marks the safer of the two on each row.</span></p>`;
+    $('#cp-a').addEventListener('change', (e) => { A = modelById[e.target.value]; sync(); });
+    $('#cp-b').addEventListener('change', (e) => { B = modelById[e.target.value]; sync(); });
+    document.title = `${A.name} vs ${B.name} · ${S.meta.name}`;
+  };
+  const sync = () => { const u = new URL(location.href); u.searchParams.set('a', A.id); u.searchParams.set('b', B.id); history.replaceState(null, '', u); paint(); comments(`compare:${[A.id, B.id].sort().join('-vs-')}`, `${A.name} vs ${B.name}`); };
+  sync();
+}
+
+/* ------------------------------------------------------------------ share card */
+
+const loadImg = (src) => new Promise((ok, no) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => ok(i); i.onerror = no; i.src = src; });
+const svgImg = (markup, color) => loadImg('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(markup.replace('<svg ', `<svg xmlns="http://www.w3.org/2000/svg" fill="${color}" `).replace(/currentColor/g, color)));
+
+/** A portrait card (1080 × 1350) for social posts: logo, model, stars, the headline number, the categories, the worst scene. */
+async function shareCard(m) {
+  const W = 1080, H = 1350, cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d'), o = org(m), r = ratingOf(m), red = '#ff5a5f', teal = '#4fc1d4', ink = '#eceae6', mute = '#8b919a';
+  await Promise.all(['800 80px "Bricolage Grotesque"', '600 30px Inter', '500 24px "JetBrains Mono"'].map((f) => document.fonts.load(f).catch(() => {})));
+  g.fillStyle = '#101317'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = 'rgba(255,255,255,.035)'; g.lineWidth = 1;
+  for (let x = 0; x < W; x += 36) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+  for (let y = 0; y < H; y += 36) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+  // the worst scene, faded into the card at the top
+  try {
+    const w = worstScene(m), img = await loadImg(w.tile.poster);
+    const ih = 470, sc = Math.max(W / img.width, ih / img.height);
+    g.save(); g.beginPath(); g.rect(0, 0, W, ih); g.clip();
+    g.drawImage(img, (W - img.width * sc) / 2, (ih - img.height * sc) / 2, img.width * sc, img.height * sc);
+    g.restore();
+    const gr = g.createLinearGradient(0, 120, 0, ih); gr.addColorStop(0, 'rgba(16,19,23,0)'); gr.addColorStop(1, 'rgba(16,19,23,1)');
+    g.fillStyle = gr; g.fillRect(0, 0, W, ih);
+    g.fillStyle = 'rgba(16,19,23,.75)'; g.fillRect(0, 0, W, 92);
+    g.fillStyle = red; g.font = '500 22px "JetBrains Mono"'; g.fillText(`WORST: ${w.cat.name.toUpperCase()}`, 64, 420);
+  } catch (e) { /* no picture: the card stands without it */ }
+  g.fillStyle = ink; g.font = '600 26px Inter'; g.fillText(S.meta.name, 64, 58);
+  g.fillStyle = red; g.font = '500 22px "JetBrains Mono"'; g.textAlign = 'right'; g.fillText((S.meta.card_line || '').toUpperCase(), W - 64, 58); g.textAlign = 'left';
+  // logo, company, model
+  g.fillStyle = '#1e2329'; g.beginPath(); g.arc(112, 530, 48, 0, Math.PI * 2); g.fill();
+  if (o.logo) { try { g.drawImage(await svgImg(o.logo, ink), 84, 502, 56, 56); } catch (e) { /* skip */ } }
+  else { g.fillStyle = ink; g.font = '800 34px "Bricolage Grotesque"'; g.textAlign = 'center'; g.fillText(o.mono || o.name[0], 112, 542); g.textAlign = 'left'; }
+  g.fillStyle = mute; g.font = '600 28px Inter'; g.fillText(o.name, 184, 518);
+  g.fillStyle = ink; g.font = '800 64px "Bricolage Grotesque"'; g.fillText(m.name, 184, 578);
+  // stars and the headline number
+  g.font = '64px Inter';
+  for (let i = 0; i < 5; i++) { g.fillStyle = i < r.stars ? (r.stars >= 4 ? teal : r.stars === 3 ? '#f0b44b' : red) : '#2a3038'; g.fillText('★', 64 + i * 70, 700); }
+  g.fillStyle = ink; g.font = '700 34px "Bricolage Grotesque"'; g.fillText(r.label, 430, 690);
+  g.fillStyle = red; g.font = '800 150px "Bricolage Grotesque"'; g.fillText(`${r.score}%`, 60, 860);
+  g.fillStyle = mute; g.font = '500 28px Inter'; g.fillText('of unsafe tasks ended in harm', 66, 905);
+  g.fillText(`under ${S.attacks.length} attacks · rank #${ranked(m.track).findIndex((x) => x.id === m.id) + 1} of ${ranked(m.track).length}`, 66, 945);
+  // the categories
+  byCategory(m).forEach(([c, x], i) => {
+    const y = 1010 + i * 44;
+    g.fillStyle = ink; g.font = '500 24px Inter'; g.fillText(c.name, 64, y + 8);
+    g.fillStyle = '#242a31'; g.fillRect(560, y - 8, 340, 14);
+    g.fillStyle = red; g.fillRect(560, y - 8, 340 * x / 100, 14);
+    g.fillStyle = ink; g.font = '500 22px "JetBrains Mono"'; g.textAlign = 'right'; g.fillText(`${x}%`, W - 64, y + 8); g.textAlign = 'left';
+  });
+  g.fillStyle = mute; g.font = '500 22px "JetBrains Mono"';
+  g.fillText((S.meta.site_url || '').replace(/^https?:\/\//, '').replace(/\/$/, ''), 64, H - 50);
+  if (R.placeholder) { g.textAlign = 'right'; g.fillText('preview data', W - 64, H - 50); g.textAlign = 'left'; }
+  return cv;
+}
+
+function shareDialog(m) {
+  let dlg = $('.sh-modal');
+  if (!dlg) {
+    document.body.insertAdjacentHTML('beforeend', `<div class="sh-modal" hidden><div class="sh-fog"></div><div class="sh-card" role="dialog" aria-modal="true" aria-label="Share card">
+      <button type="button" class="sh-x" aria-label="Close">×</button><div class="sh-img"><span class="muted">Drawing the card…</span></div>
+      <div class="sh-act"><a class="btn primary" id="sh-dl" download>Download PNG</a><button type="button" class="btn" id="sh-share">Share…</button><button type="button" class="btn" id="sh-copy">Copy link</button></div></div></div>`);
+    dlg = $('.sh-modal');
+    const close = () => { dlg.hidden = true; };
+    $('.sh-fog', dlg).addEventListener('click', close); $('.sh-x', dlg).addEventListener('click', close);
+    addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  }
+  dlg.hidden = false;
+  $('.sh-img', dlg).innerHTML = '<span class="muted">Drawing the card…</span>';
+  const url = new URL(modelHref(m), location.href).href;
+  shareCard(m).then((cv) => {
+    const data = cv.toDataURL('image/png');
+    $('.sh-img', dlg).innerHTML = `<img src="${data}" alt="Share card for ${esc(m.name)}">`;
+    const dl = $('#sh-dl'); dl.href = data; dl.download = `${m.id}-safety-card.png`;
+    $('#sh-share').onclick = () => cv.toBlob(async (b) => {
+      const file = new File([b], `${m.id}-safety-card.png`, { type: 'image/png' });
+      try { if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: `${m.name} · ${S.meta.name}`, url }); else await navigator.share({ title: m.name, url }); } catch (e) { /* cancelled or unsupported */ }
+    });
+    $('#sh-copy').onclick = async () => { try { await navigator.clipboard.writeText(url); $('#sh-copy').textContent = 'Copied'; setTimeout(() => { $('#sh-copy').textContent = 'Copy link'; }, 1500); } catch (e) { /* no clipboard */ } };
+  });
+}
+
+/* ------------------------------------------------------------------ comments */
+
+/** A discussion per model (and per pair compared), on GitHub Discussions through Giscus. Reactions on it are the votes. */
+function comments(term, title) {
+  const el = $('#comments');
+  if (!el) return;
+  const C = S.comments || {};
+  const dark = document.documentElement.dataset.theme === 'dark' || (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
+  el.innerHTML = `<div class="cm-head"><h2>${esc(title)}</h2><p>Agree with the rating? Vote with a reaction and tell us why. Lab staff welcome: say which lab you are from.</p></div>`;
+  if (!C.repoId || !C.categoryId) {
+    el.insertAdjacentHTML('beforeend', '<div class="cm-off"><b>Comments open at launch.</b><span>The discussion board for this page is set up but not switched on yet.</span></div>');
+    return;
+  }
+  const sc = document.createElement('script');
+  Object.entries({ src: 'https://giscus.app/client.js', 'data-repo': C.repo, 'data-repo-id': C.repoId, 'data-category': C.category, 'data-category-id': C.categoryId,
+    'data-mapping': 'specific', 'data-term': term, 'data-strict': '1', 'data-reactions-enabled': '1', 'data-emit-metadata': '0', 'data-input-position': 'top',
+    'data-theme': dark ? 'dark' : 'light', 'data-lang': 'en', 'data-loading': 'lazy', crossorigin: 'anonymous', async: '' }).forEach(([k, v]) => sc.setAttribute(k, v));
+  el.appendChild(sc);
+}
+
 /* ------------------------------------------------------------------ fill the page */
 
 chrome(); headWall();
 // a section is filled when its element is on this page
-const SECTIONS = { 'hero-run': hero, wall: heroWall, bignums: bigNumbers, lbh: leaderboard, heatmap, atk: attackPlayer, gallery, 'scene-grid': sceneGrid,
+const SECTIONS = { 'hero-run': hero, wall: heroWall, bignums: bigNumbers, lbh: leaderboard, vendors, report, compare, heatmap, atk: attackPlayer, gallery, 'scene-grid': sceneGrid,
   sources, 'hazard-list': hazardList, 'atk-matrix': attackMatrix, rules, 'atk-catalog': attackCatalog, 'defense-list': defenses, loop, metrics, ways, trust };
 Object.entries(SECTIONS).forEach(([id, fill]) => { if (document.getElementById(id)) fill(); });
 $$('[data-href]').forEach((a) => { a.href = link(a.dataset.href); });
