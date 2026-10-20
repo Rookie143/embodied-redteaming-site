@@ -1,34 +1,103 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Embodied Red-Teaming — research project website.">
-  <title>Embodied Red-Teaming</title>
-  <style>
-    :root { color-scheme: dark; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 32px 20px;
-      color: #e8edf7; background: radial-gradient(circle at 70% 10%, #232b59 0, transparent 45%),
-      radial-gradient(circle at 10% 85%, #182a43 0, transparent 40%), #0c1020; }
-    main { width: min(100%, 850px); padding: clamp(32px, 7vw, 80px); border: 1px solid #343d60;
-      border-radius: 24px; background: rgba(18, 25, 47, 0.75); box-shadow: 0 20px 80px #0004; }
-    .tag { display: inline-block; margin-bottom: 26px; border: 1px solid #49557d; border-radius: 50px;
-      padding: 8px 13px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #b5c9ff; }
-    h1 { margin: 0; font-size: clamp(40px, 7vw, 76px); line-height: 1.08; letter-spacing: -.05em; }
-    h1 span { color: #99b0ff; }
-    p { margin: 25px 0 0; max-width: 540px; line-height: 1.7; font-size: 18px; color: #b8c5dd; }
-    .rule { width: 56px; height: 4px; background: #91aafa; border-radius: 3px; margin: 38px 0 24px; }
-    footer { font-size: 13px; color: #8291af; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Embodied Red Teaming</title>
+<meta name="description" content="An open red-teaming arena for the foundation models that drive robots: LLM / VLM agents through code and skills, and vision-language-action policies end to end.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='2' width='28' height='28' rx='8' fill='%230f141a'/%3E%3Crect x='8.8' y='22.6' width='10.4' height='3' rx='1.5' fill='%23f4f6f9'/%3E%3Crect x='12.1' y='10' width='3.8' height='12' fill='%23f4f6f9'/%3E%3Cpath d='M14 10L9.2 14.8' stroke='%23f4f6f9' stroke-width='3.5'/%3E%3Ccircle cx='14' cy='21.4' r='2.8' fill='%23f4f6f9'/%3E%3Ccircle cx='14' cy='10' r='2.8' fill='%23ff5a4f'/%3E%3Ccircle cx='22.5' cy='17.5' r='3.6' stroke='%23ff5a4f' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="assets/exam.css">
+<link rel="stylesheet" href="assets/redteam.css">
+<script>try{var t=new URLSearchParams(location.search).get('theme')||localStorage.getItem('ert-theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;}catch(e){}</script>
+<script src="data/site.js"></script>
+<script src="data/results.js"></script>
+<script src="assets/app.js" defer></script>
 </head>
-<body>
-  <main>
-    <div class="tag">Research Project Website</div>
-    <h1>Embodied<br><span>Red-Teaming</span></h1>
-    <p>Our project website is being prepared. Research details, results, and resources will be added here.</p>
-    <div class="rule" aria-hidden="true"></div>
-    <footer>Coming soon · Embodied Red-Teaming</footer>
-  </main>
+<body data-page="home">
+<div id="nav"></div>
+<main>
+
+  <section class="hero-wall" id="top">
+    <div class="wall" id="wall" aria-hidden="true"></div>
+    <div class="wall-veil"></div>
+    <div class="wall-paper"></div>
+    <div class="hero-main">
+      <div class="hero-copy">
+        <p class="hero-q"><span id="hero-q"></span> <em id="hero-q-em"></em></p>
+        <h1 id="hero-h1"></h1>
+        <p class="summary" id="hero-lead"></p>
+        <div class="hero-run" id="hero-run"></div>
+        <div class="cta">
+          <a class="btn primary" href="#leaderboard">See the leaderboard <span class="arr">→</span></a>
+          <a class="btn gh-start" data-gh>Get started</a>
+          <a class="btn" href="#attacks">See an attack</a>
+        </div>
+      </div>
+    </div>
+    <a class="scroll-cue" href="#statement" aria-label="Scroll down">↓</a>
+  </section>
+
+  <section class="section numbers" id="statement">
+    <dl class="bignums reveal" id="bignums"></dl>
+  </section>
+
+  <section class="section" id="leaderboard">
+    <div class="head reveal">
+      <h2>Leaderboard</h2>
+    </div>
+    <div class="lbh rt reveal" id="lbh"></div>
+  </section>
+
+  <section class="section" id="breaks">
+    <div class="head reveal">
+      <h2>Where they break</h2>
+    </div>
+    <div class="hm reveal" id="heatmap"></div>
+  </section>
+
+  <section class="section" id="attacks">
+    <div class="head reveal">
+      <h2>One task, five attacks</h2>
+    </div>
+    <div class="atk reveal" id="atk"></div>
+  </section>
+
+  <section class="section" id="scenarios">
+    <div class="head reveal">
+      <h2>The scenarios</h2>
+    </div>
+    <div class="galleries reveal" id="gallery"></div>
+  </section>
+
+  <section class="section" id="how">
+    <div class="head reveal">
+      <h2>The red-teaming loop</h2>
+    </div>
+    <figure class="loop reveal" id="loop"></figure>
+    <div class="metrics reveal" id="metrics"></div>
+    <div class="cways reveal" id="ways"></div>
+    <div class="trust reveal">
+      <p class="label">What keeps the numbers honest</p>
+      <ul id="trust"></ul>
+    </div>
+  </section>
+
+  <section class="section closing">
+    <div class="closing-inner reveal">
+      <h2>Bring an attack to the arena.</h2>
+      <div class="cta">
+        <a class="btn primary" data-gh>Submit an attack <span class="arr">→</span></a>
+        <a class="btn" data-gh>Submit a model</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+<div id="footer"></div>
+<div class="ph-badge" id="ph-badge" hidden></div>
 </body>
 </html>
