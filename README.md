@@ -7,6 +7,8 @@ for LLM / VLM agents (code-as-policies, skill planner) and VLA policies, under a
 A badge in the bottom-left corner says so; it goes away when `meta.placeholder` in `data/site.js` and
 `placeholder` in `data/results.js` are both `false`.
 
+Live site: https://rookie143.github.io/embodied-redteaming-site/
+
 ## Run it
 
 ```
