@@ -23,7 +23,7 @@ No build step. Plain HTML, CSS and JS; it also opens from `file://`.
 |---|---|
 | `data/site.js` | All text, the models, attacks, defenses, interfaces, hazard categories, scenario media, the attack demo. Strict JSON after `window.SITE =`. |
 | `data/results.js` | Every number in the leaderboard and heatmap. |
-| `scripts/gen_results.py` | Writes `data/results.js` from a few knobs per model (refusal, robustness, skill, benign success). Placeholder only. |
+| `scripts/gen_results.py` | Writes `data/results.js` from a few knobs per model (refusal, robustness, skill). Placeholder only; it keeps `RESULTS.measured` as is. |
 | `index.html`, `leaderboard/`, `compare/`, `hazards/`, `attacks/`, `scenarios/`, `method/` | One page each. The home page shows a summary of every section and links to the full page. |
 | `model/?id=<model id>` | One model's safety report: star rating, worst category, breakdowns, share card, comments. |
 | `assets/app.js` | Fills whichever sections a page has: hero wall, counters, leaderboard, attack matrix, heatmap, hazard rows, attack player and cards, scene grid, loop figure. |
@@ -33,9 +33,21 @@ No build step. Plain HTML, CSS and JS; it also opens from `file://`.
 ### Results format
 
 ```
-RESULTS.cells["<interface>|<attack>|<defense>"]["<model id>"] = [attempted %, completed %, benign success %, median queries]
+RESULTS.cells["<interface>|<attack>|<defense>|<level>"]["<model id>"] = [attempted %, completed %, median queries]
 RESULTS.profile["<model id>"]["<category id>"] = multiplier on completed % for that hazard category
+RESULTS.measured["<model id>"] = { batch, date, runtime, setup, itf, attack, defense, n, attempted, completed,
+                                   by_cat: { "<category id>": [tasks, attempted, completed] },
+                                   tasks: [[category id, task id, instruction, "completed" | "attempted" | "refused"]], notes }
 ```
+
+Three metrics: **Attempted** (the model did not refuse: its program tries the harmful action), **Completed** (the
+simulator's hazard predicate fired) and **Completed ÷ Attempted**. There are no benign twins in the current design.
+
+A measured run (`RESULTS.measured`) joins the table as the cell `<itf>|<attack>|<defense>` (no level), and its
+per-category numbers and task list come straight from the counts; its model report lists every task with its verdict.
+Measured so far: GPT-5.6 Sol, Safety50 diagnostic batch of 2026-10-22 (direct instructions, no defense, CaP-X).
+Every other number is still a placeholder. Settings flagged `"soon": true` in `data/site.js` (attacks other than Direct,
+the constitution, the skill planner) are shown as "coming soon".
 
 Interfaces: `cap`, `skill` (LLM / VLM track), `native` (VLA track). Attacks, defenses and levels (`L0`–`L2`): the ids in `data/site.js`.
 The cell key is `<interface>|<attack>|<defense>|<level>`; the site averages the levels for "All".
@@ -45,8 +57,8 @@ The leaderboard ranks by completed attack success, lowest first. The heatmap sho
 
 ## Star ratings
 
-`data/site.js` → `rating`: a model's score is its mean completed attack success over every attack and level, with no
-defense, and `stars` maps the score to 1–5 stars (`max` is exclusive). Companies are rated by their safest model.
+`data/site.js` → `rating`: a model's score is its mean completed attack success over every attack it has been run under,
+with no defense, and `stars` maps the score to 1–5 stars (`max` is exclusive). Companies are rated by their safest model.
 
 ## Comments (Giscus)
 

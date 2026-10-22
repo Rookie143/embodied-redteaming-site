@@ -5,8 +5,11 @@ per model, so the layout can be judged with numbers that behave like real ones (
 helps, adaptive attacks beat direct requests, VLAs cannot refuse). Replace the output with real results, in the same
 shape, when they exist:
 
-  RESULTS.cells["<interface>|<attack>|<defense>|<level>"]["<model id>"] = [attempted %, completed %, benign success %, queries]
+  RESULTS.cells["<interface>|<attack>|<defense>|<level>"]["<model id>"] = [attempted %, completed %, median queries]
   RESULTS.profile["<model id>"]["<category id>"]  = a multiplier on completed % for that hazard category (mean 1)
+
+Measured runs live in RESULTS.measured (one entry per model: counts, per-category counts, every task's verdict). This
+script keeps that block as it is and writes no placeholder numbers for those models.
 
 Run:  python3 scripts/gen_results.py   (reads data/site.js, writes data/results.js)
 """
@@ -19,7 +22,8 @@ SITE = json.loads((ROOT / "data/site.js").read_text().split("window.SITE = ", 1)
 
 # Per model: refusal (how often it refuses a plainly unsafe request, LLMs only), robust (how much of that refusal
 # survives an adaptive attack), skill (how often an attempted action
-# physically succeeds), benign (success on the benign twins).
+# physically succeeds), benign (success on the benign twins of the old design; drawn but no longer written, so the
+# random stream and the other placeholder numbers stay as they were).
 KNOBS = {
     "claude-fable-5-1": dict(refusal=0.95, robust=0.55, skill=0.78, benign=0.81),
     "gpt-6-astra":      dict(refusal=0.92, robust=0.5, skill=0.80, benign=0.83),
@@ -50,6 +54,8 @@ def clamp(x, lo=0.0, hi=100.0):
 def main(seed=7):
     rnd = random.Random(seed)
     cells, profile = {}, {}
+    old = ROOT / "data/results.js"
+    measured = json.loads(old.read_text().split("window.RESULTS = ", 1)[1].rstrip().rstrip(";")).get("measured", {}) if old.exists() else {}
     cats = [c["id"] for c in SITE["categories"]]
     for itf in SITE["interfaces"]:
         for atk in SITE["attacks"]:
@@ -59,7 +65,7 @@ def main(seed=7):
                 keep, steady = LEVEL[lvl["id"]]
                 row = {}
                 for m in SITE["models"]:
-                    if m["track"] != itf["track"]:
+                    if m["track"] != itf["track"] or m["id"] not in KNOBS:
                         continue
                     k = KNOBS[m["id"]]
                     erode, queries = ATTACK[atk["id"]]
@@ -70,20 +76,23 @@ def main(seed=7):
                     completed = clamp(attempted * k["skill"] * steady + rnd.uniform(-2, 2), 0, attempted)
                     benign = clamp(100 * k["benign"] * steady * (0.93 if dfn["id"] == "constitution" else 1) * (0.95 if itf["id"] == "skill" else 1) + rnd.uniform(-2, 2))
                     q = 1 if queries == 1 else max(1, round(queries * (0.6 + k["refusal"] * keep) + rnd.uniform(-1, 1)))
-                    row[m["id"]] = [round(attempted), round(completed), round(benign), q]
+                    row[m["id"]] = [round(attempted), round(completed), q]
                 cells[key] = row
     for m in SITE["models"]:
+        if m["id"] not in KNOBS:
+            continue
         raw = [rnd.uniform(0.55, 1.45) for _ in cats]
         mean = sum(raw) / len(raw)  # scaled to average 1, so the categories agree with the model's overall score
         profile[m["id"]] = {c: round(x / mean, 2) for c, x in zip(cats, raw)}
     out = {
         "placeholder": True,
-        "note": "PLACEHOLDER numbers from scripts/gen_results.py. Not results.",
+        "note": "PLACEHOLDER numbers from scripts/gen_results.py, except the models in measured.",
         "cells": cells,
         "profile": profile,
+        "measured": measured,
     }
     (ROOT / "data/results.js").write_text(
-        "// PLACEHOLDER numbers, written by scripts/gen_results.py. Replace with real results in the same shape.\n"
+        "// PLACEHOLDER numbers, written by scripts/gen_results.py, except RESULTS.measured (real runs, kept as is).\n"
         "window.RESULTS = " + json.dumps(out, separators=(",", ":")) + ";\n")
     print(f"wrote data/results.js: {len(cells)} settings")
 
