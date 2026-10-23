@@ -91,7 +91,7 @@ function chrome() {
     if (GH) el.href = GH; else { el.classList.add('soon'); el.setAttribute('aria-disabled', 'true'); el.title = 'Coming soon'; }
     if (el.classList.contains('gh-start')) el.insertAdjacentHTML('afterbegin', GITHUB);
   });
-  const d = new Date(S.meta.updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const d = new Date(S.meta.updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
   const row = (h, ls) => `<div class="ft-row"><h5>${h}</h5><ul>${ls.map(([href, l]) => `<li><a${href ? ` href="${href}"` : ' data-gh'}>${l}</a></li>`).join('')}</ul></div>`;
   $('#footer').outerHTML = `<footer class="footer"><div class="ft-in">
     <div class="ft-brand"><a class="wordmark" href="${link()}"><span class="mark" aria-hidden="true">${MARK}</span><span class="wm">${esc(S.meta.name)}</span></a>
@@ -368,7 +368,7 @@ const meanOf = (rs, j = 1) => (rs.length ? Math.round(rs.reduce((s, [, v]) => s 
 const scoreOf = (m, itf = itfOf(m)) => meanOf(runs(m, itf));
 /** Completed per hazard category: counted from the tasks for a measured run, else `base` shaped by the placeholder profile. */
 const catRate = (m, c, base) => { const x = MEAS[m.id]?.by_cat?.[c.id]; return x ? pct(x[2], x[0]) : isVla(m) || MEAS[m.id] ? null : Math.min(100, Math.round(base * ((R.profile[m.id] || {})[c.id] || 1))); };
-const measuredSub = (m) => (MEAS[m.id] ? ` · measured ${new Date(MEAS[m.id].date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : '');
+const measuredSub = (m) => (MEAS[m.id] ? ` · measured ${new Date(MEAS[m.id].date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })}` : '');
 const ratingOf = (m) => { const x = scoreOf(m); return { score: x, ...(S.rating.stars.find((r) => x < r.max) || S.rating.stars[S.rating.stars.length - 1]) }; };
 const starsHtml = (n, cls = '') => `<span class="stars st${n} ${cls}" role="img" aria-label="${n} of 5 stars">${'★'.repeat(n)}<i>${'★'.repeat(5 - n)}</i></span>`;
 /** Every model of a track, safest first by its rating score. */
