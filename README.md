@@ -4,7 +4,7 @@ A static home page for an embodied red-teaming benchmark: how safe foundation mo
 for LLM / VLM agents (code-as-policies, skill planner) and VLA policies, under attacks and defenses.
 
 **Status: template.** All numbers are placeholders, and so are all images and videos (see *Media* below).
-A badge in the bottom-left corner says so; it goes away when `meta.placeholder` in `data/site.js` and
+A badge in the bottom-right corner says so; it goes away when `meta.placeholder` in `data/site.js` and
 `placeholder` in `data/results.js` are both `false`.
 
 Live site: https://rookie143.github.io/embodied-redteaming-site/
@@ -26,9 +26,8 @@ No build step. Plain HTML, CSS and JS; it also opens from `file://`.
 | `scripts/gen_results.py` | Writes `data/results.js` from a few knobs per model (refusal, robustness, skill). Placeholder only; it keeps `RESULTS.measured` as is. |
 | `index.html`, `leaderboard/`, `compare/`, `hazards/`, `attacks/`, `scenarios/`, `method/` | One page each. The home page shows a summary of every section and links to the full page. |
 | `model/?id=<model id>` | One model's safety report: star rating, worst category, breakdowns, share card, comments. |
-| `assets/app.js` | Fills whichever sections a page has: hero wall, counters, leaderboard, attack matrix, heatmap, hazard rows, attack player and cards, scene grid, loop figure. |
-| `assets/exam.css` | The Embodied First Exam stylesheet, unchanged (MIT, see below). |
-| `assets/redteam.css` | What this page adds: harm/safe colours, stacked bars, heatmap, attack player, loop figure. |
+| `assets/app.js` | Fills whichever sections a page has: the hero's scene plane and the band of it under each inner page's title, counters, leaderboard, attack matrix, heatmap, hazard rows, attack player and cards, scene grid, loop figure, share card. |
+| `assets/site.css` | The whole look, one light theme: palette (harm red, safe teal), Sora / DM Sans / IBM Plex Mono, the bar, cards, controls, the perspective scene plane and every section. |
 
 ### Results format
 
@@ -79,10 +78,8 @@ Every image and video is a **placeholder** linked from the Embodied First Exam m
 (`huggingface.co/datasets/MLL-Lab/embodied-exam-media`, not copied into this repo): scenes of their safety suite,
 their home-page wall and three suite teasers. Replace them with our own episode renders (a local `media/` folder or
 our own Hugging Face dataset) before announcing the site; tiles are listed in `data/site.js` → `tiles`
-(`kind: "unsafe"` tiles play on the open right side of the hero, `kind: "scene"` sit under the title).
+(`kind: "unsafe"` tiles make up most of the hero's scene plane and the near ones play; `kind: "scene"` tiles are mixed in).
 
 ## Credits
 
-Layout, interaction design and `assets/exam.css` follow [Embodied First Exam](https://www.embodied-first-exam.ai/)
-([repo](https://github.com/mll-lab-nu/embodied-first-exam)), MIT License, Copyright (c) 2026 Kangrui Wang and
-Embodied First Exam contributors. The footer credits it; keep that line, and keep their license notice with `assets/exam.css`.
+Template adapted from [Embodied First Exam](https://www.embodied-first-exam.ai/) (MIT); its license is in assets/LICENSE-embodied-first-exam.
