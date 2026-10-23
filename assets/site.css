@@ -371,9 +371,9 @@ main { min-height: 70vh; counter-reset: sec; }
 .lbh-val em { min-width: 64px; text-align: right; font: 500 11.5px/1 var(--mono); font-style: normal; color: var(--ink-3); }
 .lbh-ben { display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-variant-numeric: tabular-nums; }
 .lbh-ben i { position: relative; display: block; width: 44px; height: 6px; overflow: hidden; border-radius: 3px; background: var(--bg-2); }
-.lbh-ben i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--b); border-radius: 3px; background: color-mix(in srgb, var(--harm) 55%, var(--bg-2));
+.lbh-ben i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--b); border-radius: 3px; background: var(--safe);
   transition: width 1.1s cubic-bezier(.2, .8, .2, 1) calc(var(--i) * 70ms + 400ms); }
-.lbh-ben b { min-width: 34px; text-align: right; font: 600 13px/1 var(--mono); color: var(--ink-2); }
+.lbh-ben b { min-width: 34px; text-align: right; font: 600 13px/1 var(--mono); color: var(--safe-ink); }
 .lbh.reveal:not(.in) .lbh-a, .lbh.reveal:not(.in) .lbh-s, .lbh.reveal:not(.in) .lbh-ben i::after { width: 0; }
 .lbh.reveal:not(.in) .lbh-val, .lbh.reveal:not(.in) .lbh-ben { opacity: 0; }
 .rt-key { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-2); }
@@ -621,6 +621,8 @@ a.g-item:hover .img img, a.g-item:hover .img video { transform: scale(1.04); }
 .metrics > .label { margin: 0 0 12px; }
 .metrics dl { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 0; }
 .metrics.m3 dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.metrics.m4 dl { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .metrics.m4 dl { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .metrics dl > div { padding: 18px 18px 16px; }
 .metrics dt { display: flex; align-items: center; gap: 10px; font: 650 15px/1.25 var(--display); letter-spacing: -.02em; }
 .metrics dt::before { content: ""; flex: none; width: 4px; height: 16px; border-radius: 2px; background: var(--harm); }
@@ -630,7 +632,7 @@ a.g-item:hover .img img, a.g-item:hover .img video { transform: scale(1.04); }
 .metrics .dk-constitution dt::before { background: var(--safe); }
 .metrics .dk-more dt::before { background: var(--ink-3); }
 .metrics dd { margin: 8px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--ink-2); }
-@media (max-width: 900px) { .metrics dl, .metrics.m3 dl { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 900px) { .metrics dl, .metrics.m3 dl, .metrics.m4 dl { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------- method: the three interfaces, what keeps the numbers honest ---------- */
 .cways { max-width: 980px; }
@@ -893,3 +895,26 @@ a.g-item:hover .img img, a.g-item:hover .img video { transform: scale(1.04); }
   .wt::before, .g-item .img::before, .atk-media::before { content: ""; display: block; padding-top: 75%; }
   .wt img, .wt video, .g-item .img img, .g-item .img video, .atk-media img, .atk-media video { top: 0; left: 0; }
 }
+
+/* ---------- task levels: the legend under the leaderboard controls, the method page block ---------- */
+.lv-legend { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 18px; margin: 4px 0 12px; font-size: 12.5px; color: var(--ink-3); }
+.lv-legend > div { display: flex; gap: 8px; align-items: baseline; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); }
+.lv-legend > div.on { border-color: var(--ink-3); color: var(--ink-2); }
+.lv-legend dt { font: 600 11px/1 var(--mono); color: var(--harm-ink); }
+.lv-legend dd { margin: 0; line-height: 1.4; }
+.lv-legend dd b { color: var(--ink-2); font-weight: 600; }
+@media (max-width: 760px) { .lv-legend { grid-template-columns: minmax(0, 1fr); } }
+.lbh-ben.na b { color: var(--ink-3); }
+.lv-note { margin: 12px 0 0; font-size: 13px; }
+#levels dd small, #checks dd small { display: block; margin-top: 8px; font: 500 11.5px/1.4 var(--mono); color: var(--ink-3); }
+.rp-strip .bignums:has(> div:nth-child(4)) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .rp-strip .bignums:has(> div:nth-child(4)) { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .rp-strip .bignums:has(> div:nth-child(4)) { grid-template-columns: minmax(0, 1fr); } }
+.rp-big.safe dt { color: var(--safe-ink); }
+.rt-key .k-b { background: var(--safe); }
+.rt-cat.safe .rt-mini i { background: var(--safe); }
+.rt-cat.safe b { color: var(--safe-ink); }
+.lv-tasks { display: grid; gap: 12px; margin-top: 18px; }
+.lv-tasks li em { color: var(--ink-3); background: var(--bg-2); }
+.lv-tag { margin-left: 4px; padding: 1px 5px; border-radius: 4px; background: var(--bg-2); color: var(--ink-3); font-size: 10px; }
+.ms-lv { margin-top: 8px !important; font-size: 12.5px; }

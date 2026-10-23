@@ -25,21 +25,26 @@ SITE = json.loads((ROOT / "data/site.js").read_text().split("window.SITE = ", 1)
 # physically succeeds), benign (success on the benign twins of the old design; drawn but no longer written, so the
 # random stream and the other placeholder numbers stay as they were).
 KNOBS = {
-    "claude-fable-5-1": dict(refusal=0.95, robust=0.55, skill=0.78, benign=0.81),
     "gpt-6-astra":      dict(refusal=0.92, robust=0.5, skill=0.80, benign=0.83),
-    "gemini-4-argon":   dict(refusal=0.86, robust=0.4, skill=0.74, benign=0.77),
-    "claude-haiku-5-5": dict(refusal=0.90, robust=0.45, skill=0.62, benign=0.66),
-    "gemini-3-8-flash": dict(refusal=0.74, robust=0.25, skill=0.60, benign=0.63),
-    "deepseek-v4-1":    dict(refusal=0.61, robust=0.15, skill=0.58, benign=0.59),
-    "glm-5-3-flash":    dict(refusal=0.55, robust=0.1, skill=0.52, benign=0.54),
-    "qwen-vl":          dict(refusal=0.58, robust=0.1, skill=0.50, benign=0.52),
-    "pi05":             dict(refusal=0.08, robust=0, skill=0.62, benign=0.64),
-    "openvla":          dict(refusal=0.02, robust=0, skill=0.41, benign=0.44),
-    "molmoact-2":       dict(refusal=0.12, robust=0, skill=0.55, benign=0.58),
-    "rt-2":             dict(refusal=0.05, robust=0, skill=0.47, benign=0.49),
+    "claude-fable-5-1": dict(refusal=0.95, robust=0.55, skill=0.78, benign=0.81),
+    "claude-haiku-4-5": dict(refusal=0.90, robust=0.45, skill=0.62, benign=0.66),
+    "gemini-3-1-pro":   dict(refusal=0.86, robust=0.4, skill=0.74, benign=0.77),
+    "qwen3-8-max":      dict(refusal=0.58, robust=0.1, skill=0.50, benign=0.52),
+    "glm-5-3":          dict(refusal=0.55, robust=0.1, skill=0.52, benign=0.54),
+}
+# VLA track: earlier evaluation (safe success by level L0/L1/L2, then safe success, unsafe success, safe failure, unsafe
+# failure, all %). Commit = unsafe success + unsafe failure. Attempt is a placeholder until the new measurement lands.
+VLA = {
+    "pi0":         dict(safe_lv=[63, 29, 8], ss=33, us=17, sf=16, uf=34, attempt=97),
+    "pi0-fast":    dict(safe_lv=[54, 20, 6], ss=27, us=21, sf=15, uf=37, attempt=98),
+    "openvla-oft": dict(safe_lv=[59, 16, 1], ss=25, us=15, sf=28, uf=33, attempt=96),
+    "pi05":        dict(safe_lv=[41, 24, 9], ss=24, us=18, sf=28, uf=30, attempt=95),
+    "openvla":     dict(safe_lv=[42, 20, 6], ss=23, us=17, sf=30, uf=30, attempt=99),
+    "univla":      dict(safe_lv=[43, 17, 6], ss=22, us=20, sf=24, uf=34, attempt=97),
+    "smolvla":     dict(safe_lv=[22, 4, 0], ss=9, us=7, sf=39, uf=45, attempt=94),
 }
 # How much each attack erodes refusal (0 = none, 1 = refusal gone), and its typical query count to first success.
-ATTACK = {"direct": (0.0, 1), "obfuscation": (0.45, 1), "robopair": (0.80, 14), "badrobot": (0.62, 6), "decomposition": (0.72, 4)}
+ATTACK = {"direct": (0.0, 1), "robopair": (0.80, 14), "badrobot": (0.62, 6), "decomposition": (0.72, 4)}
 CONSTITUTION = 0.55  # share of the remaining compliance a constitution removes (less for VLAs, which barely read it)
 INTERFACE = {"cap": 1.0, "skill": 0.88, "native": 1.0}  # skill libraries are coarser: a little less harm gets through
 # Task difficulty: the share of a model's refusal left at each level (a harder level hides the hazard better), and of
@@ -76,7 +81,9 @@ def main(seed=7):
                     completed = clamp(attempted * k["skill"] * steady + rnd.uniform(-2, 2), 0, attempted)
                     benign = clamp(100 * k["benign"] * steady * (0.93 if dfn["id"] == "constitution" else 1) * (0.95 if itf["id"] == "skill" else 1) + rnd.uniform(-2, 2))
                     q = 1 if queries == 1 else max(1, round(queries * (0.6 + k["refusal"] * keep) + rnd.uniform(-1, 1)))
-                    row[m["id"]] = [round(attempted), round(completed), q]
+                    # safe alternative: a share of the non-attempted tasks done as a deliberate safe substitute
+                    safe = clamp((100 - attempted) * (0.25 + 0.3 * k["benign"]) + rnd.uniform(-2, 2), 0, 100 - attempted)
+                    row[m["id"]] = [round(attempted), round(completed), q, round(safe)]
                 cells[key] = row
     for m in SITE["models"]:
         if m["id"] not in KNOBS:
@@ -90,6 +97,7 @@ def main(seed=7):
         "cells": cells,
         "profile": profile,
         "measured": measured,
+        "vla": VLA,
     }
     (ROOT / "data/results.js").write_text(
         "// PLACEHOLDER numbers, written by scripts/gen_results.py, except RESULTS.measured (real runs, kept as is).\n"
