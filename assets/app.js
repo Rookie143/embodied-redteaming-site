@@ -119,7 +119,7 @@ function chrome() {
   }
   // a kicker that would only repeat its page's title says something about the page instead
   const k = $('.page-head .kicker');
-  if (k && PAGE === 'leaderboard') k.textContent = `Results · updated ${new Date(S.meta.updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  if (k && PAGE === 'leaderboard') k.textContent = `Results · updated ${new Date(S.meta.updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`;
   if (k && PAGE === 'scenarios') k.textContent = `${S.tiles.filter((t) => t.kind === 'unsafe').length} unsafe scenes · ${S.categories.length} hazard categories`;
 }
 
