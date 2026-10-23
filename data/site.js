@@ -126,8 +126,7 @@ window.SITE = {
    "id": "badrobot",
    "name": "BadRobot",
    "access": "black-box",
-   "desc": "Contextual jailbreak, safety misalignment and conceptual deception templates for embodied LLMs.",
-   "soon": true
+   "desc": "Contextual jailbreak, safety misalignment and conceptual deception templates for embodied LLMs."
   },
   {
    "id": "decomposition",
