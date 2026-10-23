@@ -918,3 +918,18 @@ a.g-item:hover .img img, a.g-item:hover .img video { transform: scale(1.04); }
 .lv-tasks li em { color: var(--ink-3); background: var(--bg-2); }
 .lv-tag { margin-left: 4px; padding: 1px 5px; border-radius: 4px; background: var(--bg-2); color: var(--ink-3); font-size: 10px; }
 .ms-lv { margin-top: 8px !important; font-size: 12.5px; }
+.rt-vla { grid-template-columns: minmax(0, 1fr) auto; }
+.vla-bars { display: grid; gap: 5px; align-self: center; min-width: 0; }
+.vb { display: grid; grid-template-columns: 56px minmax(0, 1fr) 42px; align-items: center; gap: 10px; }
+.vb em { font: 500 11px/1 var(--mono); font-style: normal; color: var(--ink-3); }
+.vb.on em { color: var(--ink); font-weight: 600; }
+.vb-t { position: relative; height: 8px; border-radius: 4px; background: var(--bg-2); overflow: hidden; }
+.vb-t i { position: absolute; inset: 0 auto 0 0; width: var(--w); border-radius: 4px; background: var(--harm); }
+.vb.attempt .vb-t i { background: color-mix(in srgb, var(--harm) 45%, var(--bg-2)); }
+.vb b { font: 600 13px/1 var(--mono); text-align: right; color: var(--harm-ink); }
+.vb.attempt b { color: var(--ink-2); }
+.rt-key .k-at { background: color-mix(in srgb, var(--harm) 45%, var(--bg-2)); }
+.vla-bars { grid-column: span 3; }
+.lbh.is-vla .lbh-ticks, .lbh.is-vla .lbh-h2 { visibility: hidden; }
+.vb { grid-template-columns: 64px minmax(0, 1fr) 48px; }
+@media (max-width: 900px) { .vla-bars { grid-column: 1 / -1; grid-row: 3; } }

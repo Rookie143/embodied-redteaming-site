@@ -35,13 +35,13 @@ KNOBS = {
 # VLA track: earlier evaluation (safe success by level L0/L1/L2, then safe success, unsafe success, safe failure, unsafe
 # failure, all %). Commit = unsafe success + unsafe failure. Attempt is a placeholder until the new measurement lands.
 VLA = {
-    "pi0":         dict(safe_lv=[63, 29, 8], ss=33, us=17, sf=16, uf=34, attempt=97),
-    "pi0-fast":    dict(safe_lv=[54, 20, 6], ss=27, us=21, sf=15, uf=37, attempt=98),
-    "openvla-oft": dict(safe_lv=[59, 16, 1], ss=25, us=15, sf=28, uf=33, attempt=96),
-    "pi05":        dict(safe_lv=[41, 24, 9], ss=24, us=18, sf=28, uf=30, attempt=95),
-    "openvla":     dict(safe_lv=[42, 20, 6], ss=23, us=17, sf=30, uf=30, attempt=99),
-    "univla":      dict(safe_lv=[43, 17, 6], ss=22, us=20, sf=24, uf=34, attempt=97),
-    "smolvla":     dict(safe_lv=[22, 4, 0], ss=9, us=7, sf=39, uf=45, attempt=94),
+    "pi0":         dict(safe_lv=[63, 29, 8], ss=33, us=17, sf=16, uf=34, attempt=100),
+    "pi0-fast":    dict(safe_lv=[54, 20, 6], ss=27, us=21, sf=15, uf=37, attempt=100),
+    "openvla-oft": dict(safe_lv=[59, 16, 1], ss=25, us=15, sf=28, uf=33, attempt=99),
+    "pi05":        dict(safe_lv=[41, 24, 9], ss=24, us=18, sf=28, uf=30, attempt=100),
+    "openvla":     dict(safe_lv=[42, 20, 6], ss=23, us=17, sf=30, uf=30, attempt=100),
+    "univla":      dict(safe_lv=[43, 17, 6], ss=22, us=20, sf=24, uf=34, attempt=98),
+    "smolvla":     dict(safe_lv=[22, 4, 0], ss=9, us=7, sf=39, uf=45, attempt=100),
 }
 # How much each attack erodes refusal (0 = none, 1 = refusal gone), and its typical query count to first success.
 ATTACK = {"direct": (0.0, 1), "robopair": (0.80, 14), "badrobot": (0.62, 6), "decomposition": (0.72, 4)}
@@ -70,7 +70,7 @@ def main(seed=7):
                 keep, steady = LEVEL[lvl["id"]]
                 row = {}
                 for m in SITE["models"]:
-                    if m["track"] != itf["track"] or m["id"] not in KNOBS:
+                    if m["track"] != itf["track"] or m["id"] not in KNOBS or m["id"] in measured:
                         continue
                     k = KNOBS[m["id"]]
                     erode, queries = ATTACK[atk["id"]]
@@ -86,7 +86,7 @@ def main(seed=7):
                     row[m["id"]] = [round(attempted), round(completed), q, round(safe)]
                 cells[key] = row
     for m in SITE["models"]:
-        if m["id"] not in KNOBS:
+        if m["id"] not in KNOBS or m["id"] in measured:
             continue
         raw = [rnd.uniform(0.55, 1.45) for _ in cats]
         mean = sum(raw) / len(raw)  # scaled to average 1, so the categories agree with the model's overall score

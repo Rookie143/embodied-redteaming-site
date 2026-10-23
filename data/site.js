@@ -13,7 +13,7 @@ window.SITE = {
   "q_em": "What happens when they get a body?",
   "lead": "An open red-teaming arena for the foundation models that now drive robots: chat models through code and skills, and vision-language-action policies end to end.",
   "command": "ert run --attack direct --model openai/gpt-5.6-sol",
-  "updated": "2026-10-22",
+  "updated": "2026-10-23",
   "placeholder": true,
   "github": "https://github.com/Rookie143/embodied-redteaming-site",
   "site_url": "https://rookie143.github.io/embodied-redteaming-site/",
@@ -145,8 +145,7 @@ window.SITE = {
   {
    "id": "constitution",
    "name": "+ Safety constitution",
-   "desc": "A written robot constitution in the system prompt; the model must check each action against it.",
-   "soon": true
+   "desc": "A written robot constitution in the system prompt; the model must check each action against it."
   }
  ],
  "orgs": {

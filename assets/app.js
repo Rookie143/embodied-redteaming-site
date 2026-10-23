@@ -21,8 +21,10 @@ const INTOTAL = (S.levels || []).filter((l) => l.in_total !== false).map((l) => 
  *  per level and per category; v1 (one condition, pooled counts only) is read as v2 without levels. Each condition
  *  writes its pooled L0+L1 numbers into the level-less cell and its per-level numbers into the per-level cells. */
 const MEAS = {};
-const sum4 = (rows) => rows.reduce((t, x) => t.map((v, j) => (v == null || x[j] == null ? null : v + x[j])), [0, 0, 0, 0]);
-const cellOf = (x) => [pct(x[1], x[0]), pct(x[2], x[0]), 1, x[3] == null ? null : pct(x[3], x[0])];
+// a level is [n, attempted, completed, safe_alt] or, when each metric has its own known count, {a: [k, n], c: [k, n], s: [k, n]}
+const asObj = (x) => (Array.isArray(x) ? { a: [x[1], x[0]], c: [x[2], x[0]], s: x[3] == null ? null : [x[3], x[0]] } : x);
+const sum4 = (rows) => rows.map(asObj).reduce((t, x) => Object.fromEntries(['a', 'c', 's'].map((k) => [k, t[k] == null || x[k] == null ? null : [t[k][0] + x[k][0], t[k][1] + x[k][1]]])), { a: [0, 0], c: [0, 0], s: [0, 0] });
+const cellOf = (x0) => { const x = asObj(x0); return [pct(...x.a), pct(...x.c), 1, x.s == null ? null : pct(...x.s)]; };
 Object.entries(R.measured || {}).forEach(([id, x0]) => {
   const x = x0.conditions ? { ...x0 } : { ...x0, conditions: { [`${x0.attack}|${x0.defense}`]: { itf: x0.itf, pooled: [x0.n, x0.attempted, x0.completed, null], by_cat: x0.by_cat } } };
   Object.entries(x.conditions).forEach(([k, c]) => {
@@ -33,7 +35,8 @@ Object.entries(R.measured || {}).forEach(([id, x0]) => {
   });
   const base = x.conditions['direct|none'] || Object.values(x.conditions)[0], [bk] = Object.entries(x.conditions).find(([, c]) => c === base);
   [x.attack, x.defense] = bk.split('|');
-  Object.assign(x, { itf: base.itf, n: base.pooled[0], attempted: base.pooled[1], completed: base.pooled[2], safe_alt: base.pooled[3], by_cat: base.by_cat, levels: base.levels });
+  const P = asObj(base.pooled);
+  Object.assign(x, { itf: base.itf, n: P.a[1], attempted: P.a[0], completed: P.c[0], cell: cellOf(base.pooled), by_cat: base.by_cat, levels: base.levels });
   MEAS[id] = x;
 });
 /** VLA track (RESULTS.vla): attempt and commit (unsafe success + unsafe failure), direct instructions, no defense. */
@@ -364,7 +367,7 @@ const meanOf = (rs, j = 1) => (rs.length ? Math.round(rs.reduce((s, [, v]) => s 
 /** The headline number behind the star rating: mean completed attack success over every attack it was run under, no defense. */
 const scoreOf = (m, itf = itfOf(m)) => meanOf(runs(m, itf));
 /** Completed per hazard category: counted from the tasks for a measured run, else `base` shaped by the placeholder profile. */
-const catRate = (m, c, base) => { const x = MEAS[m.id]?.by_cat?.[c.id]; return x ? pct(x[2], x[0]) : isVla(m) ? null : Math.min(100, Math.round(base * ((R.profile[m.id] || {})[c.id] || 1))); };
+const catRate = (m, c, base) => { const x = MEAS[m.id]?.by_cat?.[c.id]; return x ? pct(x[2], x[0]) : isVla(m) || MEAS[m.id] ? null : Math.min(100, Math.round(base * ((R.profile[m.id] || {})[c.id] || 1))); };
 const measuredSub = (m) => (MEAS[m.id] ? ` · measured ${new Date(MEAS[m.id].date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : '');
 const ratingOf = (m) => { const x = scoreOf(m); return { score: x, ...(S.rating.stars.find((r) => x < r.max) || S.rating.stars[S.rating.stars.length - 1]) }; };
 const starsHtml = (n, cls = '') => `<span class="stars st${n} ${cls}" role="img" aria-label="${n} of 5 stars">${'★'.repeat(n)}<i>${'★'.repeat(5 - n)}</i></span>`;
@@ -379,7 +382,7 @@ const companies = (track) => {
 
 function leaderboard() {
   const el = $('#lbh');
-  const st = { view: 'models', track: 'llm', itf: 'cap', atk: 'direct', dfn: 'none', lvl: 'all', open: null };
+  const st = { view: 'models', track: 'llm', itf: 'cap', atk: 'direct', dfn: 'none', lvl: 'all', vm: 'commit', open: null };
   const seg = (name, opts, cur, label) => `<div class="seg" data-k="${name}" role="group" aria-label="${label}">${opts.map(([v, l]) =>
     `<button type="button" data-v="${v}" aria-pressed="${v === cur}" class="${v === cur ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   const controls = () => {
@@ -389,7 +392,8 @@ function leaderboard() {
       ${seg('track', [['llm', 'LLM / VLM agents'], ['vla', 'VLA policies']], st.track, 'Track')}
       ${itfs.length > 1 ? seg('itf', itfs.map((i) => [i.id, esc(i.name) + soonTag(i)]), st.itf, 'Robot interface') : `<span class="rt-fixed">${esc(itfs[0].name)}</span>`}
     </div>
-    ${st.track === 'vla' ? `<p class="lb-desc">Direct instructions, no defense. <b>Commit</b>: the policy carries out the harmful action, whether or not the harm then happens. <b>Attempt</b>: the policy moves to act on the instruction at all.</p>` : `<div class="lbh-top rt-top rt-sub">
+    ${st.track === 'vla' ? `<div class="lbh-top rt-top rt-sub"><span class="rt-grp"><span class="label">Metric</span>${seg('vm', [['commit', 'Commit'], ['attempt', 'Attempt']], st.vm, 'Metric')}</span></div>
+    <p class="lb-desc">Direct instructions, no defense. ${st.vm === 'commit' ? '<b>Commit</b>: the policy carries out the harmful action, whether or not the harm then happens.' : '<b>Attempt</b>: the policy moves to act on the instruction at all.'}</p>` : `<div class="lbh-top rt-top rt-sub">
       <span class="rt-grp"><span class="label">Attack</span>${seg('atk', S.attacks.map((a) => [a.id, esc(a.name) + soonTag(a)]), st.atk, 'Attack')}</span>
       <span class="rt-grp"><span class="label">Defense</span>${seg('dfn', S.defenses.map((d) => [d.id, esc(d.name) + soonTag(d)]), st.dfn, 'Defense')}</span>
       ${LEVELS.length ? `<span class="rt-grp"><span class="label">Level</span>${seg('lvl', [['all', 'All'], ...S.levels.map((l) => [l.id, l.name])], st.lvl, 'Task level')}</span>` : ''}
@@ -402,14 +406,15 @@ function leaderboard() {
     <div class="lbh-rows"></div></div>
     <div class="rt-key"></div>`;
   const keys = () => st.track === 'vla'
-    ? `<span><i class="k-c"></i>Commit: carried out the harmful action</span><span><i class="k-a"></i>Attempt</span><span class="muted">Ranked by commit rate, lowest first. ${esc(S.vla_note || '')} Click a row for more.</span>`
+    ? `<span><i class="k-c"></i>Commit: carried out the harmful action</span><span><i class="k-at"></i>Attempt: moved to act on the instruction</span><span class="muted">Ranked by ${st.vm} rate, lowest first. ${esc(S.vla_note || '')} Click a row for more.</span>`
     : `<span><i class="k-c"></i>Harm completed</span><span><i class="k-a"></i>Harm attempted, not completed</span><span><i class="k-b"></i>Safe alternative: did a safe substitute instead</span><span class="muted">Ranked by completed attack success in this setting, lowest first. Stars rate every attack a model was run under. Click a row for more.</span>`;
   const paintControls = () => {
     $('.rt-controls', el).innerHTML = controls();
     cues($('.rt-controls', el));
     $('.rt-key', el).innerHTML = keys();
-    $('.lbh-h2', el).textContent = st.track === 'vla' ? 'Commit ↓' : 'ASR ↓';
+    $('.lbh-h2', el).textContent = st.track === 'vla' ? (st.vm === 'commit' ? 'Commit ↓' : 'Attempt ↓') : 'ASR ↓';
     $('.lbh-h3', el).style.visibility = st.track === 'vla' ? 'hidden' : '';
+    el.classList.toggle('is-vla', st.track === 'vla');
     if (!$('#lbh-desc')) return;
     const a = S.attacks.find((x) => x.id === st.atk), d = S.defenses.find((x) => x.id === st.dfn), i = S.interfaces.find((x) => x.id === st.itf);
     const l = (S.levels || []).find((x) => x.id === st.lvl);
@@ -423,8 +428,8 @@ function leaderboard() {
       <span class="rk r${k + 1}">${k + 1}</span>${markOf(m)}
       <span class="lbh-name"><span class="lbh-nl"><b>${esc(name)}</b><span class="lbh-set">${esc(sub)}</span></span></span>
       <span class="rt-star">${starsHtml(r.stars)}</span>
-      <span class="lbh-track"><span class="lbh-a" style="--w:${att}%"></span><span class="lbh-s" style="--w:${comp}%"></span></span>
-      <span class="lbh-val"><b>${comp}<small>%</small></b><em>${vla ? 'attempt' : 'tried'} ${att}%</em></span>
+      ${vla ? `<span class="vla-bars">${[['commit', 'Commit', comp], ['attempt', 'Attempt', att]].map(([k, l, x]) => `<span class="vb ${k}${st.vm === k ? ' on' : ''}"><em>${l}</em><span class="vb-t"><i style="--w:${x}%"></i></span><b>${x}%</b></span>`).join('')}</span>` : `<span class="lbh-track"><span class="lbh-a" style="--w:${att}%"></span><span class="lbh-s" style="--w:${comp}%"></span></span>
+      <span class="lbh-val"><b>${comp}<small>%</small></b><em>tried ${att}%</em></span>`}
       ${vla ? '<span class="lbh-ben"></span>' : `<span class="lbh-ben${sa == null ? ' na' : ''}" style="--b:${sa || 0}%"><i></i><b>${sa == null ? '–' : `${sa}%`}</b></span>`}
     </button>${st.open === id ? (id.startsWith('org:') ? orgDetail(id.slice(4)) : detail(m, v)) : ''}`;
   };
@@ -447,12 +452,8 @@ function leaderboard() {
       <p class="rt-links"><a class="btn primary" href="${modelHref(m)}">Full safety report <span class="arr">→</span></a>${rival ? `<a class="btn" href="${compareHref(m.id, rival.id)}">Compare with ${esc(rival.name)}</a>` : ''}</p></div>`;
   };
   const vlaDetail = (m, v) => {
-    const x = VLA[m.id] || {}, r = ratingOf(m), rival = ranked(m.track).find((y) => y.id !== m.id && y.org !== m.org);
-    return `<div class="rt-detail">
-      <div class="rt-dcol"><p class="label">Earlier evaluation · outcome split</p>
-        ${[['Unsafe success', x.us], ['Unsafe failure', x.uf], ['Safe success', x.ss], ['Safe failure', x.sf]].map(([l, y]) => `<div class="rt-cat"><span>${l}</span><span class="rt-mini"><i style="--w:${y}%"></i></span><b>${y}%</b></div>`).join('')}</div>
-      <div class="rt-dcol"><p class="label">Safe success by level</p>
-        ${(x.safe_lv || []).map((y, i) => `<div class="rt-cat"><span>L${i}</span><span class="rt-mini dfn"><i style="--w:${y}%"></i></span><b>${y}%</b></div>`).join('')}</div>
+    const r = ratingOf(m), rival = ranked(m.track).find((y) => y.id !== m.id && y.org !== m.org);
+    return `<div class="rt-detail rt-vla">
       <dl class="rt-stats">
         <div><dt>${starsHtml(r.stars)}</dt><dd>${esc(r.label)} · ${r.score}% commit</dd></div><div><dt>${v[1]}%</dt><dd>Commit</dd></div>
         <div><dt>${v[0]}%</dt><dd>Attempt</dd></div>
@@ -473,7 +474,8 @@ function leaderboard() {
       items.forEach((it) => { const o = it[1].org; if (!best.has(o) || it[4][1] < best.get(o)[4][1]) best.set(o, it); });
       items = [...best.values()].map(([, m, , , vv]) => { const n = S.models.filter((x) => x.org === m.org && x.track === st.track).length; return [`org:${m.org}`, m, org(m).name, `best: ${m.name}${n > 1 ? ` · ${n} models` : ''}`, vv]; });
     }
-    items.sort((a, b) => a[4][1] - b[4][1] || a[4][0] - b[4][0]);
+    const j = st.track === 'vla' && st.vm === 'attempt' ? 0 : 1;
+    items.sort((a, b) => a[4][j] - b[4][j] || a[4][1 - j] - b[4][1 - j]);
     // FLIP: rows that stay slide from their old place to the new one
     const before = new Map($$('.lbh-row', rowsEl).map((r) => [r.dataset.id, r.getBoundingClientRect().top]));
     rowsEl.innerHTML = items.map(([id, m, name, sub, vv], k) => row(id, m, name, sub, vv, k)).join('');
@@ -560,7 +562,7 @@ function heatmap() {
       <p class="lb-desc">LLM / VLM agents. Completed attack success under the strongest attack each model was run under, no defense, by hazard category. Darker is worse.</p>${HM_SCALE}</div>
       <div class="hm-scroll"><div class="hm-grid hm-cat" style="--n:${n}">
         <span class="hm-corner"></span>${S.categories.map((c) => `<span class="hm-h" title="${esc(c.name)}: ${esc(c.desc)}"><b>${esc(c.code)}</b><span>${esc(c.name)}</span></span>`).join('')}
-        ${ms.map((m, r) => `<span class="hm-m" title="${esc(m.name)}">${markOf(m)}<b>${esc(m.name)}</b></span>${S.categories.map((c, k) => { const x = val(m, c); return `<span class="hm-c${x >= 55 ? ' hi' : ''}${k ? '' : ' s'}${k === n - 1 ? ' e' : ''}" style="--v:${x};--d:${(r * n + k) * 14}ms" title="${esc(m.name)} · ${esc(c.name)}: ${x}%"><b>${x}</b></span>`; }).join('')}`).join('')}
+        ${ms.map((m, r) => `<span class="hm-m" title="${esc(m.name)}">${markOf(m)}<b>${esc(m.name)}</b></span>${S.categories.map((c, k) => { const x = val(m, c); if (x == null) return `<span class="hm-c na${k ? '' : ' s'}${k === n - 1 ? ' e' : ''}" title="${esc(m.name)} · ${esc(c.name)}: per-category results not published yet"><b>–</b></span>`; return `<span class="hm-c${x >= 55 ? ' hi' : ''}${k ? '' : ' s'}${k === n - 1 ? ' e' : ''}" style="--v:${x};--d:${(r * n + k) * 14}ms" title="${esc(m.name)} · ${esc(c.name)}: ${x}%"><b>${x}</b></span>`; }).join('')}`).join('')}
       </div></div>`;
     el.classList.remove('lit'); void el.offsetWidth; requestAnimationFrame(() => el.classList.add('lit'));
     cues(el);
@@ -675,11 +677,11 @@ function hazardList() {
   el.innerHTML = S.categories.map((c) => {
     const ts = unsafeOf(c.id), t = ts[0];
     const vals = ms.map((m) => catRate(m, c, worst(m)));
-    const mean = Math.round(vals.reduce((a, b) => a + b, 0) / (vals.length || 1));
+    const known = vals.filter((v) => v != null), mean = known.length ? Math.round(known.reduce((a, b) => a + b, 0) / known.length) : '–';
     return `<article class="hz-row reveal" id="${c.id}">
       ${t ? `<div class="g-item hz-img"><div class="img"><img src="${esc(t.poster)}" alt="" loading="lazy">${t.video ? `<video muted loop playsinline preload="none" data-src="${esc(t.video)}"></video>` : ''}<span class="rel-tag">${catTag(c)}</span></div></div>` : '<div></div>'}
       <div class="hz-body"><h3>${esc(c.name)}</h3><p>${esc(c.desc)}${c.tasks ? ` <b class="hz-n">${c.tasks} tasks</b>` : ''}</p>
-        <div class="hz-stat"><b>${mean}%</b><span>mean completed attack success, LLM / VLM agents, strongest attack</span></div>
+        ${known.length ? `<div class="hz-stat"><b>${mean}%</b><span>mean completed attack success, LLM / VLM agents, strongest attack</span></div>` : ''}
         ${ts.length ? `<p class="label">Example instructions</p><ul>${ts.slice(0, 4).map((x) => `<li>${esc(x.instr.length > 140 ? x.instr.slice(0, 138) + '…' : x.instr)}</li>`).join('')}</ul>` : ''}
         <p class="note"><a href="${link('scenarios/')}?cat=${c.id}">All ${esc(c.name)} scenes →</a></p></div>
     </article>`;
@@ -806,8 +808,8 @@ const byAttack = (m, dfn = 'none') => S.attacks.map((a) => [a, (cell(itfOf(m), a
 const byLevel = (m) => (S.levels || []).map((l) => { const rs = runs(m, itfOf(m), 'none', l.id); return [l, rs.length ? meanOf(rs) : null]; });
 /** Attempted and completed ÷ attempted, over the attacks a model was run under, no defense. */
 const attOf = (m) => meanOf(runs(m), 0);
-const safeOf = (m) => { if (MEAS[m.id]) return MEAS[m.id].safe_alt == null ? null : pct(MEAS[m.id].safe_alt, MEAS[m.id].n); const rs = runs(m).filter(([, v]) => v[3] != null); return rs.length ? meanOf(rs, 3) : null; };
-const ratioOf = (m) => { const x = MEAS[m.id]; return x ? pct(x.completed, x.attempted) : pct(scoreOf(m), attOf(m)); };
+const safeOf = (m) => { const rs = runs(m).filter(([, v]) => v[3] != null); return rs.length ? meanOf(rs, 3) : null; };
+const ratioOf = (m) => pct(scoreOf(m), attOf(m));
 /** The scene to show as a model's worst failure: one from its worst category (a placeholder until episodes are logged). */
 const worstScene = (m) => { const [c] = byCategory(m).sort((a, b) => (b[1] || 0) - (a[1] || 0))[0]; return { cat: c, tile: unsafeOf(c.id)[0] || S.tiles[0] }; };
 const bars = (rows, cls = '') => rows.map(([lab, x, sub]) => `<div class="rt-cat ${cls}${x == null ? ' na' : ''}"><span>${esc(lab)}${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="rt-mini"><i style="--w:${x || 0}%"></i></span><b>${x == null ? '–' : `${x}%`}</b></div>`).join('');
@@ -816,7 +818,7 @@ const VERDICT_LABEL = { completed: 'Completed', attempted: 'Tried, not completed
 /** A measured run: what was run, every task with its verdict, and the notes on the odd ones. */
 function measuredBlock(m) {
   const x = MEAS[m.id];
-  if (!x) return '';
+  if (!x || !x.tasks) return '';
   const atk = S.attacks.find((a) => a.id === x.attack), itf = S.interfaces.find((i) => i.id === x.itf);
   return `<div class="head rp-sec"><h2>Every task, as run</h2></div>
   <section class="ms">
@@ -861,8 +863,7 @@ function report() {
         <span class="atk-goal"><span class="label">${vla ? `Scene · ${esc(w.cat.name)}` : `Worst category · ${esc(w.cat.name)} · ${wc}% harm`}</span>${esc(w.tile.instr || w.tile.title)}</span></div>
         <figcaption class="muted">The scene type ${esc(m.name)} fails most. The episode recording is a placeholder until runs are logged.</figcaption></figure>
       <div class="rp-cols">
-        ${vla ? `<div><p class="label">Earlier evaluation · outcome split</p>${bars([['Unsafe success', vx.us], ['Unsafe failure', vx.uf], ['Safe success', vx.ss], ['Safe failure', vx.sf]])}</div>
-        <div><p class="label">Safe success by level</p>${bars((vx.safe_lv || []).map((y, i) => [`L${i}`, y, (S.levels[i] || {}).title]), 'safe')}</div>` : `<div><p class="label">By hazard category</p>${bars(byCategory(m).map(([c, x]) => { const k = MEAS[m.id]?.by_cat?.[c.id]; return [c.name, x, k ? `${k[2]} of ${k[0]} tasks` : '']; }))}</div>
+        ${vla ? `<div><p class="label">Direct instructions · no defense</p>${bars([['Commit', r.score, 'carried out the harmful action'], ['Attempt', attOf(m), 'moved to act on the instruction']])}</div>` : `<div><p class="label">By hazard category</p>${bars(byCategory(m).map(([c, x]) => { const k = MEAS[m.id]?.by_cat?.[c.id]; return [c.name, x, k ? `${k[2]} of ${k[0]} tasks` : '']; }))}</div>
         <div><p class="label">By attack · no defense → with constitution</p>${bars(byAttack(m).map(([a, x], i) => { const y = byAttack(m, 'constitution')[i][1]; return [a.name, x, x == null ? 'not run yet' : y == null ? 'constitution not run yet' : `→ ${y}% with constitution`]; }))}</div>
         ${LEVELS.length && byLevel(m).some(([, x]) => x != null) ? `<div><p class="label">By task level</p>${bars(byLevel(m).map(([l, x]) => [`${l.id} · ${l.title || ''}`, x, l.in_total === false ? `${l.tasks} paired variants` : `${l.tasks} tasks`]))}</div>` : ''}`}
       </div>
