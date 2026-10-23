@@ -954,3 +954,6 @@ a.g-item:hover .img img, a.g-item:hover .img video { transform: scale(1.04); }
 .tipd.r::after { left: auto; right: 0; transform: none; }
 @media (max-width: 760px) { .tipd::after { max-width: 220px; } }
 .lbh-ax, .rt-key, .rt-stats, .cp-rows, .bignums { position: relative; z-index: 5; }
+.lbh-prog { cursor: default; opacity: .75; }
+.lbh-prog .lbh-progtxt { grid-column: 4 / -1; font: 500 12px/1.4 var(--mono); color: var(--ink-3); }
+@media (max-width: 900px) { .lbh-prog .lbh-progtxt { grid-column: 1 / -1; grid-row: 2; } }
