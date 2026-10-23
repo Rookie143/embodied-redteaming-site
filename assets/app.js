@@ -43,7 +43,7 @@ Object.entries(R.measured || {}).forEach(([id, x0]) => {
 const VLA = R.vla || {};
 Object.entries(VLA).forEach(([id, v]) => { (R.cells['native|direct|none'] ||= {})[id] = [v.attempt, v.us + v.uf, 1, null]; });
 const isVla = (m) => m && m.track === 'vla';
-const soonTag = (x) => (x && x.soon ? '<small class="soon-tag">soon</small>' : '');
+const soonTag = (x) => (x && x.soon ? '<small class="soon-tag">updating</small>' : '');
 const PAGES = [['leaderboard', 'Leaderboard'], ['compare', 'Compare'], ['hazards', 'Hazards'], ['attacks', 'Attacks'], ['scenarios', 'Scenarios'], ['method', 'Method']];
 
 const ICON = {
@@ -382,6 +382,11 @@ const companies = (track) => {
 
 function leaderboard() {
   const el = $('#lbh');
+  const promptPanel = (id) => {
+    const l = S.levels.find((x) => x.id === id), ts = id === 'L2' ? (S.tasks_l2 || []) : (S.tasks || []).filter((t) => t.level === id);
+    return `<div class="lv-panel"><p class="label">${esc(id)} · ${esc(l.title || '')} · ${ts.length} prompts</p><p class="muted">${esc(l.desc)}</p>
+      <ul>${ts.map((t) => `<li><code>${esc(t.id)}</code><span>${esc(t.instr)}</span><em>${esc((catById[t.cat] || {}).name || '')}${t.base_level ? ` · base ${esc(t.base_level)}` : ''}</em></li>`).join('')}</ul></div>`;
+  };
   const st = { view: 'models', track: 'llm', itf: 'cap', atk: 'direct', dfn: 'none', lvl: 'all', vm: 'commit', open: null };
   const seg = (name, opts, cur, label) => `<div class="seg" data-k="${name}" role="group" aria-label="${label}">${opts.map(([v, l]) =>
     `<button type="button" data-v="${v}" aria-pressed="${v === cur}" class="${v === cur ? 'on' : ''}">${l}</button>`).join('')}</div>`;
@@ -398,7 +403,7 @@ function leaderboard() {
       <span class="rt-grp"><span class="label">Defense</span>${seg('dfn', S.defenses.map((d) => [d.id, esc(d.name) + soonTag(d)]), st.dfn, 'Defense')}</span>
       ${LEVELS.length ? `<span class="rt-grp"><span class="label">Level</span>${seg('lvl', [['all', 'All'], ...S.levels.map((l) => [l.id, l.name])], st.lvl, 'Task level')}</span>` : ''}
     </div>
-    ${LEVELS.length ? `<dl class="lv-legend">${S.levels.map((l) => `<div class="${l.id === st.lvl ? 'on' : ''}"><dt>${esc(l.id)}</dt><dd><b>${esc(l.title || l.name)}</b> ${esc(l.short || '')}${l.in_total === false ? ` · ${l.tasks} paired variants, outside the ${int(S.totals.unsafe_tasks)}` : l.tasks ? ` · ${l.tasks} tasks` : ''}</dd></div>`).join('')}</dl>` : ''}
+    ${LEVELS.length ? `<dl class="lv-legend">${S.levels.map((l) => `<div class="${l.id === st.lvl ? 'on' : ''}${l.id === st.pr ? ' open' : ''}" role="button" tabindex="0" data-pr="${l.id}" title="Show the ${l.id} prompts"><dt>${esc(l.id)}</dt><dd><b>${esc(l.title || l.name)}</b> ${esc(l.short || '')}${l.in_total === false ? ` · ${l.tasks} paired variants, outside the ${int(S.totals.unsafe_tasks)}` : l.tasks ? ` · ${l.tasks} tasks` : ''}<span class="lv-more">${l.id === st.pr ? 'Hide prompts ▴' : 'View prompts ▾'}</span></dd></div>`).join('')}</dl>${st.pr ? promptPanel(st.pr) : ''}` : ''}
     <p class="lb-desc" id="lbh-desc"></p>`}`;
   };
   el.innerHTML = `<div class="rt-controls"></div>
@@ -419,7 +424,7 @@ function leaderboard() {
     const a = S.attacks.find((x) => x.id === st.atk), d = S.defenses.find((x) => x.id === st.dfn), i = S.interfaces.find((x) => x.id === st.itf);
     const l = (S.levels || []).find((x) => x.id === st.lvl);
     const soon = [a, d, i].filter((x) => x.soon).map((x) => x.name.replace('+ ', ''));
-    $('#lbh-desc').innerHTML = `<b>${esc(a.name)}.</b> ${esc(a.desc)} ${d.desc ? `<b>${esc(d.name.replace('+ ', ''))}.</b> ${esc(d.desc)}` : ''} ${soon.length ? `<b class="soon-note">Coming soon: ${esc(soon.join(', '))} not run yet; every number in this setting is a placeholder.</b> ` : ''}<span class="muted">Interface: ${esc(i.name)} · ${l ? `${esc(l.name)}, ${esc(l.title || '')}: ${esc(l.desc)}` : `all levels: L0 + L1, ${int(S.totals.unsafe_tasks)} unsafe tasks; L2 on its own`}.${st.view === 'companies' ? ' Each company is shown by its safest model.' : ''}</span>`;
+    $('#lbh-desc').innerHTML = `<b>${esc(a.name)}.</b> ${esc(a.desc)} ${d.desc ? `<b>${esc(d.name.replace('+ ', ''))}.</b> ${esc(d.desc)}` : ''} ${soon.length ? `<b class="soon-note">${esc(soon.join(', '))}: results are being updated and will appear here shortly.</b> ` : ''}<span class="muted">Interface: ${esc(i.name)} · ${l ? `${esc(l.name)}, ${esc(l.title || '')}: ${esc(l.desc)}` : `all levels: L0 + L1, ${int(S.totals.unsafe_tasks)} unsafe tasks; L2 on its own`}.${st.view === 'companies' ? ' Each company is shown by its safest model.' : ''}</span>`;
   };
   const rowsEl = $('.lbh-rows', el);
   const row = (id, m, name, sub, v, k) => {
@@ -443,7 +448,7 @@ function leaderboard() {
         ${S.categories.map((c) => { const x = catRate(m, c, comp); return `<div class="rt-cat"><span>${esc(c.name)}</span><span class="rt-mini"><i style="--w:${x}%"></i></span><b>${x}%</b></div>`; }).join('')}</div>
       <div class="rt-dcol"><p class="label">By attack · completed</p>
         ${worst.map(([a, x]) => `<div class="rt-cat${a.id === st.atk ? ' cur' : ''}"><span>${esc(a.name)}</span><span class="rt-mini"><i style="--w:${x}%"></i></span><b>${x}%</b></div>`).join('')}
-        ${worst.length < S.attacks.length ? `<p class="muted rt-na">Not run yet: ${esc(S.attacks.filter((a) => !worst.some(([w]) => w === a)).map((a) => a.name).join(', '))}</p>` : ''}</div>
+        ${worst.length < S.attacks.length ? `<p class="muted rt-na">Results updating: ${esc(S.attacks.filter((a) => !worst.some(([w]) => w === a)).map((a) => a.name).join(', '))}</p>` : ''}</div>
       <dl class="rt-stats">
         <div><dt>${starsHtml(r.stars)}</dt><dd>${esc(r.label)} · ${r.score}% overall</dd></div><div><dt>${comp}%</dt><dd>Completed: harm happened</dd></div>
         <div><dt>${att}%</dt><dd>Attempted: did not refuse</dd></div><div><dt>${sa == null ? '–' : `${sa}%`}</dt><dd>Safe alternative</dd></div>
@@ -501,7 +506,11 @@ function leaderboard() {
       });
     });
   };
+  const togglePr = (t) => { st.pr = st.pr === t.dataset.pr ? null : t.dataset.pr; paintControls(); };
+  el.addEventListener('keydown', (e) => { const t = e.target.closest('[data-pr]'); if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); togglePr(t); } });
   el.addEventListener('click', (e) => {
+    const pt = e.target.closest('[data-pr]');
+    if (pt) { togglePr(pt); return; }
     const b = e.target.closest('.seg button');
     if (b) {
       const k = b.closest('.seg').dataset.k, v = b.dataset.v;
@@ -704,7 +713,7 @@ function attackMatrix() {
         <div class="seg" data-k="dfn" role="group" aria-label="Defense">${S.defenses.map((d) => `<button type="button" data-v="${d.id}" class="${d.id === st.dfn ? 'on' : ''}">${esc(d.name)}${soonTag(d)}</button>`).join('')}</div>${HM_SCALE}</div>
       <div class="hm-scroll"><div class="hm-grid hm-atk" style="--n:${S.attacks.length + 1}">
         <span class="hm-corner"></span>${S.attacks.map((a) => `<span class="hm-h"><b>${a.soon ? 'soon' : esc(a.access)}</b><span>${esc(a.name)}</span></span>`).join('')}<span class="hm-h"><b>mean</b><span>All attacks</span></span>
-        ${ms.map((m, r) => `<span class="hm-m" title="${esc(m.name)}">${markOf(m)}<b>${esc(m.name)}</b></span>${S.attacks.map((a, k) => { const v = cell(st.itf, a.id, st.dfn)[m.id], s = k ? '' : ' s'; if (!v) return `<span class="hm-c na${s}" title="${esc(m.name)} · ${esc(a.name)}: not run yet"><b>–</b></span>`; const x = v[1]; return `<span class="hm-c${x >= 55 ? ' hi' : ''}${s}" style="--v:${x};--d:${(r * 6 + k) * 12}ms" title="${esc(m.name)} · ${esc(a.name)}: ${x}%"><b>${x}</b></span>`; }).join('')}<span class="hm-c mean e" style="--v:${Math.round(mean(m))};--d:0ms" title="${esc(m.name)} · mean over the attacks run: ${Math.round(mean(m))}%"><b>${Math.round(mean(m))}</b></span>`).join('')}
+        ${ms.map((m, r) => `<span class="hm-m" title="${esc(m.name)}">${markOf(m)}<b>${esc(m.name)}</b></span>${S.attacks.map((a, k) => { const v = cell(st.itf, a.id, st.dfn)[m.id], s = k ? '' : ' s'; if (!v) return `<span class="hm-c na${s}" title="${esc(m.name)} · ${esc(a.name)}: results updating"><b>–</b></span>`; const x = v[1]; return `<span class="hm-c${x >= 55 ? ' hi' : ''}${s}" style="--v:${x};--d:${(r * 6 + k) * 12}ms" title="${esc(m.name)} · ${esc(a.name)}: ${x}%"><b>${x}</b></span>`; }).join('')}<span class="hm-c mean e" style="--v:${Math.round(mean(m))};--d:0ms" title="${esc(m.name)} · mean over the attacks run: ${Math.round(mean(m))}%"><b>${Math.round(mean(m))}</b></span>`).join('')}
       </div></div>`;
     el.classList.remove('lit'); void el.offsetWidth; requestAnimationFrame(() => el.classList.add('lit'));
     cues(el);
@@ -733,7 +742,7 @@ function attackCatalog() {
   const avg = (itf, a, d, ms) => { const v = cell(itf, a, d), have = ms.filter((m) => v[m.id]); return Math.round(have.reduce((s, m) => s + v[m.id][1], 0) / (have.length || 1)); };
   el.innerHTML = S.attacks.map((a, i) => {
     const bars = [['LLM / VLM', avg('cap', a.id, 'none', llm), avg('cap', a.id, 'constitution', llm)], ['VLA', avg('native', a.id, 'none', vla), avg('native', a.id, 'constitution', vla)]];
-    return `<article class="ac-card reveal${a.soon ? '' : ' live'}" style="--i:${i}"><div class="ac-top"><span class="lp-n">${String(i + 1).padStart(2, '0')}</span><span class="ac-acc">${esc(a.access)}</span>${a.soon ? '<span class="ac-soon">Coming soon</span>' : ''}</div>
+    return `<article class="ac-card reveal${a.soon ? '' : ' live'}" style="--i:${i}"><div class="ac-top"><span class="lp-n">${String(i + 1).padStart(2, '0')}</span><span class="ac-acc">${esc(a.access)}</span>${a.soon ? '<span class="ac-soon">Updating</span>' : ''}</div>
       <h3>${esc(a.name)}</h3><p>${esc(a.desc)}</p>
       <p class="label ac-cap">Mean completed attack success</p>
       <div class="ac-bars">${bars.map(([l, x, y]) => `<div class="ac-b"><span>${l}</span><span class="rt-mini"><i style="--w:${x}%"></i></span><b>${x}%</b><span class="rt-mini dfn"><i style="--w:${y}%"></i></span><b class="dfn">${y}%</b></div>`).join('')}</div>
@@ -864,7 +873,7 @@ function report() {
         <figcaption class="muted">The scene type ${esc(m.name)} fails most. The episode recording is a placeholder until runs are logged.</figcaption></figure>
       <div class="rp-cols">
         ${vla ? `<div><p class="label">Direct instructions · no defense</p>${bars([['Commit', r.score, 'carried out the harmful action'], ['Attempt', attOf(m), 'moved to act on the instruction']])}</div>` : `<div><p class="label">By hazard category</p>${bars(byCategory(m).map(([c, x]) => { const k = MEAS[m.id]?.by_cat?.[c.id]; return [c.name, x, k ? `${k[2]} of ${k[0]} tasks` : '']; }))}</div>
-        <div><p class="label">By attack · no defense → with constitution</p>${bars(byAttack(m).map(([a, x], i) => { const y = byAttack(m, 'constitution')[i][1]; return [a.name, x, x == null ? 'not run yet' : y == null ? 'constitution not run yet' : `→ ${y}% with constitution`]; }))}</div>
+        <div><p class="label">By attack · no defense → with constitution</p>${bars(byAttack(m).map(([a, x], i) => { const y = byAttack(m, 'constitution')[i][1]; return [a.name, x, x == null ? 'results updating' : y == null ? 'constitution not run yet' : `→ ${y}% with constitution`]; }))}</div>
         ${LEVELS.length && byLevel(m).some(([, x]) => x != null) ? `<div><p class="label">By task level</p>${bars(byLevel(m).map(([l, x]) => [`${l.id} · ${l.title || ''}`, x, l.in_total === false ? `${l.tasks} paired variants` : `${l.tasks} tasks`]))}</div>` : ''}`}
       </div>
     </div>${measuredBlock(m)}`;
@@ -904,7 +913,7 @@ function compare() {
       ${A.track !== B.track ? '<p class="lb-desc muted">Different tracks: an LLM / VLM agent and a VLA policy are tested through different interfaces, so read this with care.</p>' : ''}
       <div class="cp-rows">${rows.map(([lab, a, b, dir]) => { const both = a != null && b != null, wa = both && (dir === 'low' ? a < b : a > b), wb = both && (dir === 'low' ? b < a : b > a), f = (x) => (x == null ? '–' : `${x}%`); return `<div class="cp-row${dir === 'high' ? ' safe' : ''}${both ? '' : ' na'}">
         <b class="${wa ? 'win' : ''}">${f(a)}</b><span class="cp-bar l"><i style="--w:${a || 0}%"></i></span><span class="cp-lab">${esc(lab)}</span><span class="cp-bar r"><i style="--w:${b || 0}%"></i></span><b class="${wb ? 'win' : ''}">${f(b)}</b></div>`; }).join('')}</div>
-      <p class="rt-key"><span><i class="k-c"></i>Harm, lower is safer</span><span class="muted">✓ marks the safer of the two on each row; – means not run yet.</span></p>`;
+      <p class="rt-key"><span><i class="k-c"></i>Harm, lower is safer</span><span class="muted">✓ marks the safer of the two on each row; – means results are being updated.</span></p>`;
     $('#cp-a').addEventListener('change', (e) => { A = modelById[e.target.value]; sync(); });
     $('#cp-b').addEventListener('change', (e) => { B = modelById[e.target.value]; sync(); });
     document.title = `${A.name} vs ${B.name} · ${S.meta.name}`;

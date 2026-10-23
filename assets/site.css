@@ -933,3 +933,14 @@ a.g-item:hover .img img, a.g-item:hover .img video { transform: scale(1.04); }
 .lbh.is-vla .lbh-ticks, .lbh.is-vla .lbh-h2 { visibility: hidden; }
 .vb { grid-template-columns: 64px minmax(0, 1fr) 48px; }
 @media (max-width: 900px) { .vla-bars { grid-column: 1 / -1; grid-row: 3; } }
+.lv-legend > div[data-pr] { cursor: pointer; transition: border-color .15s; }
+.lv-legend > div[data-pr]:hover, .lv-legend > div.open { border-color: var(--harm); }
+.lv-more { display: block; margin-top: 4px; font: 600 11px/1.2 var(--mono); color: var(--harm-ink); }
+.lv-panel { margin: 0 0 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); max-height: 360px; overflow: auto; }
+.lv-panel .label { margin: 0 0 4px; }
+.lv-panel > p.muted { margin: 0 0 10px; font-size: 12.5px; }
+.lv-panel ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.lv-panel li { display: grid; grid-template-columns: 170px minmax(0, 1fr) auto; gap: 12px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-2); }
+.lv-panel li code { font: 500 11px/1.3 var(--mono); color: var(--ink-3); overflow-wrap: anywhere; }
+.lv-panel li em { font: 500 10.5px/1.2 var(--mono); font-style: normal; color: var(--ink-3); white-space: nowrap; }
+@media (max-width: 760px) { .lv-panel li { grid-template-columns: minmax(0, 1fr); gap: 2px; } .lv-panel li em { white-space: normal; } }
