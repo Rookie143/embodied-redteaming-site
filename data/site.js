@@ -13,7 +13,7 @@ window.SITE = {
   "q_em": "What happens when they get a body?",
   "lead": "An open red-teaming arena for the foundation models that now drive robots: chat models through code and skills, and vision-language-action policies end to end.",
   "command": "ert run --attack direct --model openai/gpt-5.6-sol",
-  "updated": "2026-10-23",
+  "updated": "2026-10-24",
   "placeholder": true,
   "github": "https://github.com/Rookie143/embodied-redteaming-site",
   "site_url": "https://rookie143.github.io/embodied-redteaming-site/",
@@ -119,8 +119,7 @@ window.SITE = {
    "id": "robopair",
    "name": "RoboPAIR",
    "access": "black-box",
-   "desc": "An attacker LLM rewrites the prompt round after round, guided by a judge, until the robot complies.",
-   "soon": true
+   "desc": "An attacker LLM rewrites the prompt round after round, guided by a judge, until the robot complies."
   },
   {
    "id": "badrobot",
@@ -132,8 +131,7 @@ window.SITE = {
    "id": "decomposition",
    "name": "Decomposition",
    "access": "black-box",
-   "desc": "The harmful goal is cut into steps that each look benign, sent one at a time.",
-   "soon": true
+   "desc": "The harmful goal is cut into steps that each look benign, sent one at a time."
   }
  ],
  "defenses": [

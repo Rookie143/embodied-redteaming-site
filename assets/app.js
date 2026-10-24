@@ -434,6 +434,7 @@ function leaderboard() {
     const a = S.attacks.find((x) => x.id === st.atk), d = S.defenses.find((x) => x.id === st.dfn), i = S.interfaces.find((x) => x.id === st.itf);
     const l = (S.levels || []).find((x) => x.id === st.lvl);
     const soon = [a, d, i].filter((x) => x.soon).map((x) => x.name.replace('+ ', ''));
+    if (d.id !== 'none' && a.id !== 'direct') soon.push(`${a.name} with the ${d.name.replace('+ ', '').toLowerCase()}`);
     $('#lbh-desc').innerHTML = `<b>${esc(a.name)}.</b> ${esc(a.desc)} ${d.desc ? `<b>${esc(d.name.replace('+ ', ''))}.</b> ${esc(d.desc)}` : ''} ${soon.length ? `<b class="soon-note">${esc(soon.join(', '))}: results are being updated and will appear here shortly.</b> ` : ''}<span class="muted">Interface: ${esc(i.name)} · ${l ? `${esc(l.name)}, ${esc(l.title || '')}: ${esc(l.desc)}` : `all levels: L0 + L1, ${int(S.totals.unsafe_tasks)} unsafe tasks; L2 on its own`}.${st.view === 'companies' ? ' Each company is shown by its safest model.' : ''}</span>`;
   };
   const rowsEl = $('.lbh-rows', el);
