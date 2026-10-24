@@ -581,6 +581,10 @@ function heatmap() {
     const val = (m, c) => catRate(m, c, worst(m));
     ms.sort((a, b) => worst(a) - worst(b));
     const n = S.categories.length;
+    if (!ms.some((m) => S.categories.some((c) => val(m, c) != null))) {
+      el.innerHTML = `<p class="lb-desc hm-wait">Per-category results are being compiled and will appear here shortly: completed attack success by hazard category, for each model under its strongest attack.</p>`;
+      return;
+    }
     el.innerHTML = `<div class="hm-top">
       <p class="lb-desc">LLM / VLM agents. Completed attack success under the strongest attack each model was run under, no defense, by hazard category. Darker is worse.</p>${HM_SCALE}</div>
       <div class="hm-scroll"><div class="hm-grid hm-cat" style="--n:${n}">

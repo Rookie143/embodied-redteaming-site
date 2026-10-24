@@ -957,3 +957,4 @@ a.g-item:hover .img img, a.g-item:hover .img video { transform: scale(1.04); }
 .lbh-prog { cursor: default; opacity: .75; }
 .lbh-prog .lbh-progtxt { grid-column: 4 / -1; font: 500 12px/1.4 var(--mono); color: var(--ink-3); }
 @media (max-width: 900px) { .lbh-prog .lbh-progtxt { grid-column: 1 / -1; grid-row: 2; } }
+.hm-wait { margin: 0; padding: 8px 4px; }
