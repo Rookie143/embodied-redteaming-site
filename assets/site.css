@@ -966,3 +966,16 @@ a.g-item:hover .img img, a.g-item:hover .img video { transform: scale(1.04); }
 @media (max-width: 760px) { .lv-legend { grid-template-columns: minmax(0, 1fr); } }
 .lv-legend > div.lv-or dt { color: var(--safe-ink); }
 .lv-legend > div.lv-or:hover, .lv-legend > div.lv-or.open { border-color: var(--safe); }
+/* harmful levels and the benign set are two groups, not four peers */
+.lv-groups { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: 14px; margin: 4px 0 12px; }
+.lv-groups .lv-legend { margin: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.lv-groups .lv-legend.one { grid-template-columns: minmax(0, 1fr); }
+.lv-g { padding: 10px; border-radius: 12px; background: color-mix(in srgb, var(--harm) 5%, var(--surface)); border: 1px solid color-mix(in srgb, var(--harm) 18%, var(--line)); }
+.lv-g.ben { background: color-mix(in srgb, var(--safe) 6%, var(--surface)); border-color: color-mix(in srgb, var(--safe) 25%, var(--line)); }
+.lv-gh { margin: 0 2px 8px; color: var(--harm-ink); }
+.lv-g.ben .lv-gh { color: var(--safe-ink); }
+.lv-g .lv-legend > div { background: var(--surface); }
+@media (max-width: 1100px) { .lv-groups { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) { .lv-groups .lv-legend { grid-template-columns: minmax(0, 1fr); } }
+.lv-sec { margin: 22px 0 0; color: var(--harm-ink); }
+.lv-sec.ben { color: var(--safe-ink); }
