@@ -31,6 +31,8 @@ const sum4 = (rows) => rows.map(asObj).reduce((t, x) => ({ ...Object.fromEntries
   u: [0, 1, 2].map((j) => (t.u[j] || 0) + ((x.u || [])[j] || 0)) }), { a: [0, 0], c: [0, 0], s: [0, 0], u: [0, 0, 0] });
 /** Settings still being judged: R.progress[cell key][model id] = { judged, n }. */
 R.progress = {};
+/** Settings still being simulated: their commit count is a lower bound (shown with ≥). */
+R.lower = {};
 const put = (key, id, v) => { const x = asObj(v), u = Math.max(0, ...(x.u || [0])); if (u) (R.progress[key] ||= {})[id] = { judged: x.a[1] - u, n: x.a[1] }; else (R.cells[key] ||= {})[id] = cellOf(v); };
 const cellOf = (x0) => { const x = asObj(x0); return [pct(...x.a), pct(...x.c), 1, x.s == null ? null : pct(...x.s)]; };
 Object.entries(R.measured || {}).forEach(([id, x0]) => {
@@ -39,6 +41,7 @@ Object.entries(R.measured || {}).forEach(([id, x0]) => {
     const lv = c.levels || {};
     c.pooled ||= sum4(INTOTAL.filter((l) => lv[l]).map((l) => lv[l]));
     put(`${c.itf}|${k}`, id, c.pooled);
+    if (c.lower) (R.lower[`${c.itf}|${k}`] ||= {})[id] = true;
     Object.entries(lv).forEach(([l, v]) => put(`${c.itf}|${k}|${l}`, id, v));
   });
   const base = x.conditions['direct|none'] || Object.values(x.conditions)[0], [bk] = Object.entries(x.conditions).find(([, c]) => c === base);
@@ -396,7 +399,7 @@ const companies = (track) => {
 function leaderboard() {
   const el = $('#lbh');
   const promptPanel = (id) => {
-    if (id === 'OR') return `<div class="lv-panel"><p class="label">Benign · over-refusal · ${(S.tasks_or || []).length * 2} prompts</p><p class="muted">${esc(S.tasks_or_note || '')}</p>
+    if (id === 'OR') return `<div class="lv-panel"><p class="label">Benign · over-refusal · ${(S.tasks_or || []).length * 2} prompts</p><p class="muted">${esc(S.tasks_or_note || '')}</p>${S.over_refusal ? `<p class="or-res"><b>${esc(S.over_refusal)}</b></p>` : ''}
       <ul class="or-list">${(S.tasks_or || []).map((t) => `<li><code>${esc(t.id)}</code><span><b>a</b> ${esc(t.a)}<br><b>b</b> ${esc(t.b)}</span><em>${esc(t.scene || '')}</em></li>`).join('')}</ul></div>`;
     const l = S.levels.find((x) => x.id === id), ts = id === 'L2' ? (S.tasks_l2 || []) : (S.tasks || []).filter((t) => t.level === id);
     return `<div class="lv-panel"><p class="label">${esc(id)} · ${esc(l.title || '')} · ${ts.length} prompts</p><p class="muted">${esc(l.desc)}</p>
@@ -439,8 +442,7 @@ function leaderboard() {
     const a = S.attacks.find((x) => x.id === st.atk), d = S.defenses.find((x) => x.id === st.dfn), i = S.interfaces.find((x) => x.id === st.itf);
     const l = (S.levels || []).find((x) => x.id === st.lvl);
     const soon = [a, d, i].filter((x) => x.soon).map((x) => x.name.replace('+ ', ''));
-    if (d.id !== 'none' && a.id !== 'direct') soon.push(`${a.name} with the ${d.name.replace('+ ', '').toLowerCase()}`);
-    $('#lbh-desc').innerHTML = `<b>${esc(a.name)}.</b> ${esc(a.desc)} ${d.desc ? `<b>${esc(d.name.replace('+ ', ''))}.</b> ${esc(d.desc)}` : ''} ${soon.length ? `<b class="soon-note">${esc(soon.join(', '))}: results are being updated and will appear here shortly.</b> ` : ''}<span class="muted">Interface: ${esc(i.name)} · ${l ? `${esc(l.name)}, ${esc(l.title || '')}: ${esc(l.desc)}` : `all levels: L0 + L1, ${int(S.totals.unsafe_tasks)} unsafe tasks; L2 on its own`}.${st.view === 'companies' ? ' Each company is shown by its safest model.' : ''}</span>`;
+    $('#lbh-desc').innerHTML = `<b>${esc(a.name)}.</b> ${esc(a.desc)} ${d.desc ? `<b>${esc(d.name.replace('+ ', ''))}.</b> ${esc(d.desc)}` : ''} ${soon.length ? `<b class="soon-note">${esc(soon.join(', '))}: results are being updated and will appear here shortly.</b> ` : ''}<span class="muted">Interface: ${esc(i.name)} · ${l ? `${esc(l.name)}, ${esc(l.title || '')}: ${esc(l.desc)}` : (S.results_note || `all levels: L0 + L1, ${int(S.totals.unsafe_tasks)} unsafe tasks; L2 on its own`)}.${st.view === 'companies' ? ' Each company is shown by its safest model.' : ''}</span>`;
   };
   const rowsEl = $('.lbh-rows', el);
   const row = (id, m, name, sub, v, k) => {
@@ -450,7 +452,7 @@ function leaderboard() {
       <span class="lbh-name"><span class="lbh-nl"><b>${esc(name)}</b><span class="lbh-set">${esc(sub)}</span></span></span>
       <span class="rt-star">${starsHtml(r.stars)}</span>
       ${vla ? `<span class="vla-bars">${[['commit', 'Commit', comp], ['attempt', 'Attempt', att]].map(([k, l, x]) => `<span class="vb ${k}${st.vm === k ? ' on' : ''}"><em>${tip(l, k)}</em><span class="vb-t"><i style="--w:${x}%"></i></span><b>${x}%</b></span>`).join('')}</span>` : `<span class="lbh-track"><span class="lbh-a" style="--w:${att}%"></span><span class="lbh-s" style="--w:${comp}%"></span></span>
-      <span class="lbh-val"><b>${comp}<small>%</small></b><em>tried ${att}%</em></span>`}
+      <span class="lbh-val"><b>${st.lvl === 'all' && (R.lower[`${st.itf}|${st.atk}|${st.dfn}`] || {})[m.id] ? '<i class="ge" title="Still being simulated: a lower bound">≥</i>' : ''}${comp}<small>%</small></b><em>tried ${att}%</em></span>`}
       ${vla ? '<span class="lbh-ben"></span>' : `<span class="lbh-ben${sa == null ? ' na' : ''}" style="--b:${sa || 0}%"><i></i><b>${sa == null ? '–' : `${sa}%`}</b></span>`}
     </button>${st.open === id ? (id.startsWith('org:') ? orgDetail(id.slice(4)) : detail(m, v)) : ''}`;
   };
@@ -818,7 +820,7 @@ function levels() {
 /** Validity checks (RESULTS.checks): the null-action control and threshold sensitivity, once the full run is in. */
 function checks() {
   const C = R.checks || {}, el = $('#checks');
-  const rows = [];
+  const rows = [...(C.rows || [])];
   if (C.null_action) rows.push(['Null-action control', C.null_action.text || `An empty program fired the hazard predicate in ${C.null_action.fired} of ${C.null_action.n} tasks.`]);
   (C.threshold || []).forEach((t) => rows.push([`Threshold · ${t.label}`, t.text || `Completed ${t.completed}%`]));
   el.innerHTML = rows.length ? `<dl>${rows.map(([t, d]) => `<div><dt>${esc(t)}</dt><dd>${esc(d)}</dd></div>`).join('')}</dl>`
@@ -899,7 +901,7 @@ function report() {
         <span class="atk-goal"><span class="label">${vla ? `Scene · ${esc(w.cat.name)}` : `Worst category · ${esc(w.cat.name)} · ${wc}% harm`}</span>${esc(w.tile.instr || w.tile.title)}</span></div>
         <figcaption class="muted">The scene type ${esc(m.name)} fails most. The episode recording is a placeholder until runs are logged.</figcaption></figure>
       <div class="rp-cols">
-        ${vla ? `<div><p class="label">Direct instructions · no defense</p>${bars([['Commit', r.score, 'carried out the harmful action'], ['Attempt', attOf(m), 'moved to act on the instruction']])}</div>` : `<div><p class="label">By hazard category</p>${bars(byCategory(m).map(([c, x]) => { const k = MEAS[m.id]?.by_cat?.[c.id]; return [c.name, x, k ? `${k[2]} of ${k[0]} tasks` : '']; }))}</div>
+        ${vla ? `<div><p class="label">Direct instructions · no defense</p>${bars([['Commit', r.score, 'carried out the harmful action'], ['Attempt', attOf(m), 'moved to act on the instruction']])}</div>` : `${byCategory(m).every(([, x]) => x == null) ? '' : `<div><p class="label">By hazard category</p>${bars(byCategory(m).map(([c, x]) => { const k = MEAS[m.id]?.by_cat?.[c.id]; return [c.name, x, k ? `${k[2]} of ${k[0]} tasks` : '']; }))}</div>`}
         <div><p class="label">By attack · no defense → with constitution</p>${bars(byAttack(m).map(([a, x], i) => { const y = byAttack(m, 'constitution')[i][1]; return [a.name, x, x == null ? 'results updating' : y == null ? 'constitution not run yet' : `→ ${y}% with constitution`]; }))}</div>
         ${LEVELS.length && byLevel(m).some(([, x]) => x != null) ? `<div><p class="label">By task level</p>${bars(byLevel(m).map(([l, x]) => [`${l.id} · ${l.title || ''}`, x, l.in_total === false ? `${l.tasks} paired variants` : `${l.tasks} tasks`]))}</div>` : ''}`}
       </div>
