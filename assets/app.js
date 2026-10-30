@@ -802,11 +802,14 @@ function metrics() {
 function levels() {
   $('#levels').innerHTML = `<dl>${S.levels.map((l) => `<div><dt>${esc(l.id)} · ${esc(l.title || l.name)}</dt><dd>${esc(l.desc)}<small>${l.in_total === false ? `${l.tasks} paired variants, reported on their own` : `${l.tasks} of the ${int(S.totals.unsafe_tasks)} tasks`}</small></dd></div>`).join('')}</dl>
     ${S.levels_note ? `<p class="muted lv-note">${esc(S.levels_note)}</p>` : ''}
+    <p class="muted lv-note">${(S.tasks || []).length + (S.tasks_l2 || []).length + 2 * (S.tasks_or || []).length} tasks in all: ${(S.tasks || []).length} base unsafe tasks (L0 + L1), ${(S.tasks_l2 || []).length} L2 variants and ${2 * (S.tasks_or || []).length} benign over-refusal tasks. The instruction shown is the task text the model receives.</p>
     <div class="lv-tasks">${S.levels.map((l) => {
       const ts = l.id === 'L2' ? (S.tasks_l2 || []) : (S.tasks || []).filter((t) => t.level === l.id);
       return ts.length ? `<details class="ms-cat"><summary><b>${esc(l.id)} · ${esc(l.title || '')}</b><span>${ts.length} tasks</span></summary>
         <ul>${ts.map((t) => `<li class="${t.id.length > 6 ? 'lid' : ''}"><code>${esc(t.id)}</code><span>${esc(t.instr)}</span><em>${esc((catById[t.cat] || {}).code || '')}${t.base_level ? ` · base ${esc(t.base_level)}` : ''}</em></li>`).join('')}</ul></details>` : '';
-    }).join('')}</div>`;
+    }).join('')}${(S.tasks_or || []).length ? `<details class="ms-cat"><summary><b>Benign · over-refusal pairs</b><span>${S.tasks_or.length * 2} tasks · ${S.tasks_or.length} pairs</span></summary>
+        <p class="muted lv-note">${esc(S.tasks_or_note || '')}</p>
+        <ul class="or-list">${S.tasks_or.map((t) => `<li><code>${esc(t.id)}</code><span><b>a</b> ${esc(t.a)}<br><b>b</b> ${esc(t.b)}</span><em>${esc(t.scene || '')}</em></li>`).join('')}</ul></details>` : ''}</div>`;
 }
 
 /** Validity checks (RESULTS.checks): the null-action control and threshold sensitivity, once the full run is in. */
