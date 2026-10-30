@@ -396,6 +396,8 @@ const companies = (track) => {
 function leaderboard() {
   const el = $('#lbh');
   const promptPanel = (id) => {
+    if (id === 'OR') return `<div class="lv-panel"><p class="label">Benign · over-refusal · ${(S.tasks_or || []).length * 2} prompts</p><p class="muted">${esc(S.tasks_or_note || '')}</p>
+      <ul class="or-list">${(S.tasks_or || []).map((t) => `<li><code>${esc(t.id)}</code><span><b>a</b> ${esc(t.a)}<br><b>b</b> ${esc(t.b)}</span><em>${esc(t.scene || '')}</em></li>`).join('')}</ul></div>`;
     const l = S.levels.find((x) => x.id === id), ts = id === 'L2' ? (S.tasks_l2 || []) : (S.tasks || []).filter((t) => t.level === id);
     return `<div class="lv-panel"><p class="label">${esc(id)} · ${esc(l.title || '')} · ${ts.length} prompts</p><p class="muted">${esc(l.desc)}</p>
       <ul>${ts.map((t) => `<li><code>${esc(t.id)}</code><span>${esc(t.instr)}</span><em>${esc((catById[t.cat] || {}).name || '')}${t.base_level ? ` · base ${esc(t.base_level)}` : ''}</em></li>`).join('')}</ul></div>`;
@@ -416,7 +418,7 @@ function leaderboard() {
       <span class="rt-grp"><span class="label">Defense</span>${seg('dfn', S.defenses.map((d) => [d.id, esc(d.name) + soonTag(d)]), st.dfn, 'Defense')}</span>
       ${LEVELS.length ? `<span class="rt-grp"><span class="label">Level</span>${seg('lvl', [['all', 'All'], ...S.levels.map((l) => [l.id, l.name])], st.lvl, 'Task level')}</span>` : ''}
     </div>
-    ${LEVELS.length ? `<dl class="lv-legend">${S.levels.map((l) => `<div class="${l.id === st.lvl ? 'on' : ''}${l.id === st.pr ? ' open' : ''}" role="button" tabindex="0" data-pr="${l.id}" title="Show the ${l.id} prompts"><dt>${esc(l.id)}</dt><dd><b>${esc(l.title || l.name)}</b> ${esc(l.short || '')}${l.in_total === false ? ` · ${l.tasks} paired variants, outside the ${int(S.totals.unsafe_tasks)}` : l.tasks ? ` · ${l.tasks} tasks` : ''}<span class="lv-more">${l.id === st.pr ? 'Hide prompts ▴' : 'View prompts ▾'}</span></dd></div>`).join('')}</dl>${st.pr ? promptPanel(st.pr) : ''}` : ''}
+    ${LEVELS.length ? `<dl class="lv-legend">${S.levels.map((l) => `<div class="${l.id === st.lvl ? 'on' : ''}${l.id === st.pr ? ' open' : ''}" role="button" tabindex="0" data-pr="${l.id}" title="Show the ${l.id} prompts"><dt>${esc(l.id)}</dt><dd><b>${esc(l.title || l.name)}</b> ${esc(l.short || '')}${l.in_total === false ? ` · ${l.tasks} paired variants, outside the ${int(S.totals.unsafe_tasks)}` : l.tasks ? ` · ${l.tasks} tasks` : ''}<span class="lv-more">${l.id === st.pr ? 'Hide prompts ▴' : 'View prompts ▾'}</span></dd></div>`).join('')}${(S.tasks_or || []).length ? `<div class="lv-or${st.pr === 'OR' ? ' open' : ''}" role="button" tabindex="0" data-pr="OR" title="Show the benign prompts"><dt>OR</dt><dd><b>Benign · over-refusal</b> safe tasks, plain vs alarming wording · ${S.tasks_or.length * 2} tasks<span class="lv-more">${st.pr === 'OR' ? 'Hide prompts ▴' : 'View prompts ▾'}</span></dd></div>` : ''}</dl>${st.pr ? promptPanel(st.pr) : ''}` : ''}
     <p class="lb-desc" id="lbh-desc"></p>`}`;
   };
   el.innerHTML = `<div class="rt-controls"></div>

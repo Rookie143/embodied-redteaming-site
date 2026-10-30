@@ -961,3 +961,8 @@ a.g-item:hover .img img, a.g-item:hover .img video { transform: scale(1.04); }
 .or-list li span b { font: 600 11px/1 var(--mono); color: var(--safe-ink); margin-right: 4px; }
 .or-list li em { white-space: normal; max-width: 180px; text-align: right; }
 .or-list li em:empty { display: none; }
+.lv-legend { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .lv-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .lv-legend { grid-template-columns: minmax(0, 1fr); } }
+.lv-legend > div.lv-or dt { color: var(--safe-ink); }
+.lv-legend > div.lv-or:hover, .lv-legend > div.lv-or.open { border-color: var(--safe); }
