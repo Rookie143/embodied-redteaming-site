@@ -110,7 +110,7 @@ function chrome() {
   const row = (h, ls) => `<div class="ft-row"><h5>${h}</h5><ul>${ls.map(([href, l]) => `<li><a${href ? ` href="${href}"` : ' data-gh'}>${l}</a></li>`).join('')}</ul></div>`;
   $('#footer').outerHTML = `<footer class="footer"><div class="ft-in">
     <div class="ft-brand"><a class="wordmark" href="${link()}"><span class="mark" aria-hidden="true">${MARK}</span><span class="wm">${esc(S.meta.name)}</span></a>
-      <p class="prov">Results updated ${esc(d)}${S.meta.placeholder ? ' · placeholder data' : ''}</p></div>
+      <p class="prov">Results updated ${esc(d)}${S.meta.placeholder ? ' · preview' : ''}</p></div>
     <nav class="ft-rows" aria-label="Site">
       ${row('The arena', [[link('leaderboard/'), 'Leaderboard'], [link('hazards/'), 'Hazards'], [link('attacks/'), 'Attacks']])}
       ${row('Method', [[link('scenarios/'), 'Scenarios'], [link('method/'), 'The loop'], [`${link('method/')}#metrics`, 'Metrics']])}
@@ -122,8 +122,7 @@ function chrome() {
   if (S.meta.placeholder || R.placeholder) {
     const b = $('#ph-badge');
     b.hidden = false;
-    const real = S.models.filter((m) => MEAS[m.id]).map((m) => m.name);
-    const full = `Preview · placeholder numbers${real.length ? ` (measured: ${real.join(', ')})` : ''} and media`;
+    const full = 'Preview · scene media are placeholders; VLA results are preliminary';
     b.innerHTML = `<i></i><span class="ph-full" aria-hidden="true">${esc(full)}</span><span class="ph-short" aria-hidden="true">Preview</span>`;
     b.title = full;
     b.setAttribute('role', 'note'); b.setAttribute('aria-label', full); b.tabIndex = 0;
@@ -345,7 +344,7 @@ function bigNumbers() {
   const settings = S.attacks.length * S.defenses.length;
   const episodes = T.unsafe_tasks * settings * pairs;
   const run = S.attacks.filter((a) => !a.soon).length;
-  const items = [['doc', T.unsafe_tasks, 'unsafe tasks', `in ${S.categories.length} hazard categories`], ['arm', S.models.length, 'foundation models', `${llm} LLM / VLM · ${vla} VLA`], ['bolt', S.attacks.length, 'attack settings', `${run} run · ${S.attacks.length - run} coming soon`]];
+  const items = [['doc', T.unsafe_tasks, 'unsafe tasks', `in ${S.categories.length} hazard categories`], ['arm', S.models.length, 'foundation models', `${llm} LLM / VLM · ${vla} VLA`], ['bolt', S.attacks.length, 'attack settings', `${S.attacks.length - 1} attacks + direct baseline`]];
   const el = $('#bignums');
   el.innerHTML = items.map(([ic, v, l, sub]) => `<div><dt data-to="${v}">0</dt><dd><span class="bn-ic">${svg(ic)}</span><b>${esc(l)}</b><small>${esc(sub)}</small></dd></div>`).join('');
   el.insertAdjacentHTML('afterend', `<p class="nums-line reveal"><span><b>${S.categories.length}</b> hazard categories</span><i aria-hidden="true">·</i><span><b>${S.interfaces.length}</b> robot interfaces</span><i aria-hidden="true">·</i><span><b>${int(episodes)}</b> episodes</span></p>`);
@@ -787,7 +786,7 @@ function loop() {
   const steps = [
     ['doc', 'Task', 'An unsafe instruction, in a frozen scene with only the two objects it names', 'task'],
     ['bolt', 'Attack', S.attacks.map((a) => a.name).join(' · '), 'attack'],
-    ['judge', 'Defense', 'None for now; a written safety constitution is coming', 'defense'],
+    ['judge', 'Defense', 'None, or a written safety constitution', 'defense'],
     ['arm', 'Model + interface', S.interfaces.map((i) => i.name).join(' · '), 'model'],
     ['layers', 'Simulator', 'CaP-X in MuJoCo: the program runs once, no retries', 'sim'],
     ['replay', 'Judge', 'Did it try? Did the harm happen, checked frame by frame?', 'judge'],

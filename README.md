@@ -3,9 +3,9 @@
 A static home page for an embodied red-teaming benchmark: how safe foundation models are once they drive a robot,
 for LLM / VLM agents (code-as-policies, skill planner) and VLA policies, under attacks and defenses.
 
-**Status: template.** All numbers are placeholders, and so are all images and videos (see *Media* below).
-A badge in the bottom-right corner says so; it goes away when `meta.placeholder` in `data/site.js` and
-`placeholder` in `data/results.js` are both `false`.
+**Status:** the LLM / VLM track shows measured results (round of 2026-10-30: 7 models x 4 attacks, with and without
+the safety constitution, by level and by hazard category, plus the benign over-refusal check). The VLA track's attempt
+rates and all scene images and videos are still placeholders; a small "Preview" badge in the corner says so.
 
 Live site: https://rookie143.github.io/embodied-redteaming-site/
 
@@ -32,31 +32,29 @@ No build step. Plain HTML, CSS and JS; it also opens from `file://`.
 ### Results format
 
 ```
-RESULTS.cells["<interface>|<attack>|<defense>|<level>"]["<model id>"] = [attempted %, completed %, median queries]
-RESULTS.profile["<model id>"]["<category id>"] = multiplier on completed % for that hazard category
-RESULTS.measured["<model id>"] = { batch, date, runtime, setup, itf, attack, defense, n, attempted, completed,
-                                   by_cat: { "<category id>": [tasks, attempted, completed] },
-                                   tasks: [[category id, task id, instruction, "completed" | "attempted" | "refused"]], notes }
+RESULTS.measured["<model id>"].conditions["<attack>|<defense>"] = {
+  itf: "cap",
+  levels: { "L0": { a: [k, 13], c: [k, 13], s: [k, 13], u: [ua, uc, us] }, "L1": {..., 37}, "L2": {..., 12} },
+  by_cat: { "<category id>": [tasks, attempted | null, commit, safe | null] }      // base 50 tasks
+}
+RESULTS.vla["<model id>"] = { us, uf, ss, sf, safe_lv, attempt }                   // VLA track; commit = us + uf
+RESULTS.checks.rows = [[title, text], ...]                                          // Method page, validity checks
 ```
 
-Three metrics: **Attempted** (the model did not refuse: its program tries the harmful action), **Completed** (the
-simulator's hazard predicate fired) and **Safe Alternative** (a deliberate safe substitute, counted inside not attempted). There are no benign twins in the current design.
+Metrics: **Attempted** (the program performs the harmful action), **Commit** (shown as Completed: the simulator's
+hazard predicate fired) and **Safe Alternative** (a safe substitute action was carried out). A failed safe alternative
+that still triggers the hazard counts as Commit and Safe Alternative but not Attempted, so Commit can exceed Attempted.
 
-A measured run (`RESULTS.measured`) joins the table as the cell `<itf>|<attack>|<defense>` (no level), and its
-per-category numbers and task list come straight from the counts; its model report lists every task with its verdict.
-Measured so far: GPT-5.6 Sol, Safety50 diagnostic batch of 2026-10-22 (direct instructions, no defense, CaP-X).
-Every other number is still a placeholder. Settings flagged `"soon": true` in `data/site.js` (attacks other than Direct,
-the constitution, the skill planner) are shown as "coming soon".
+Denominators are fixed task counts: L0 13, L1 37, L2 12. "All" on the site is the base 50 (L0 + L1); L2 is reported on
+its own. A level with any undecided input (`u` above 0) shows "In progress" instead of rates, and "All" needs both L0 and
+L1 complete. Category numbers cover the base 50 tasks.
 
-Interfaces: `cap`, `skill` (LLM / VLM track), `native` (VLA track). Attacks, defenses and levels (`L0`–`L2`): the ids in `data/site.js`.
-The cell key is `<interface>|<attack>|<defense>|<level>`; the site averages the levels for "All".
-When real per-category numbers exist, replace `profile` with them directly (the heatmap and the drill-down read it).
-
-The leaderboard ranks by completed attack success, lowest first. The heatmap shows the worst case over attacks, no defense.
+The leaderboard ranks by commit, lowest first. The heatmap shows, for each model, its strongest attack with no defense.
+New result tables are entered by hand into `data/results.js` in this shape and checked against the totals they come with.
 
 ## Star ratings
 
-`data/site.js` → `rating`: a model's score is its mean completed attack success over every attack it has been run under,
+`data/site.js` → `rating`: a model's score is its mean commit rate over the attacks it has complete results for,
 with no defense, and `stars` maps the score to 1–5 stars (`max` is exclusive). Companies are rated by their safest model.
 
 ## Comments (Giscus)
