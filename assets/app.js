@@ -383,7 +383,7 @@ const meanOf = (rs, j = 1) => (rs.length ? Math.round(rs.reduce((s, [, v]) => s 
 const scoreOf = (m, itf = itfOf(m)) => { const rs = runs(m, itf); return rs.length ? meanOf(rs) : null; };
 const pc = (x) => (x == null ? '–' : `${x}%`);
 /** Completed per hazard category: counted from the tasks for a measured run, else `base` shaped by the placeholder profile. */
-const catRate = (m, c, base, atk = 'direct') => { const M0 = MEAS[m.id], x = (M0?.conditions ? M0.conditions[`${atk}|none`] : M0)?.by_cat?.[c.id]; return x ? pct(x[2], x[0]) : isVla(m) || MEAS[m.id] ? null : Math.min(100, Math.round(base * ((R.profile[m.id] || {})[c.id] || 1))); };
+const catRate = (m, c, base, atk = 'direct') => { const M0 = MEAS[m.id], x = (M0?.conditions ? M0.conditions[atk.includes('|') ? atk : `${atk}|none`] : M0)?.by_cat?.[c.id]; return x ? pct(x[2], x[0]) : isVla(m) || MEAS[m.id] ? null : Math.min(100, Math.round(base * ((R.profile[m.id] || {})[c.id] || 1))); };
 const measuredSub = (m) => (MEAS[m.id] ? ` · measured ${new Date(MEAS[m.id].date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })}` : '');
 const ratingOf = (m) => { const x = scoreOf(m); if (x == null) return { score: null, stars: 0, label: 'In progress' }; return { score: x, ...(S.rating.stars.find((r) => x < r.max) || S.rating.stars[S.rating.stars.length - 1]) }; };
 const starsHtml = (n, cls = '') => `<span class="stars st${n} ${cls}" role="img" aria-label="${n} of 5 stars">${'★'.repeat(n)}<i>${'★'.repeat(5 - n)}</i></span>`;
@@ -462,8 +462,8 @@ function leaderboard() {
     const worst = runs(m, st.itf, st.dfn, st.lvl).map(([a, x]) => [a, x[1]]).sort((x, y) => y[1] - x[1]);
     const rival = ranked(m.track).find((x) => x.id !== m.id && x.org !== m.org);
     return `<div class="rt-detail">
-      ${S.categories.some((c) => catRate(m, c, comp, st.dfn === 'none' && st.lvl === 'all' ? st.atk : '-') != null) ? `<div class="rt-dcol"><p class="label">By hazard category · completed</p>
-        ${S.categories.map((c) => { const x = catRate(m, c, comp, st.dfn === 'none' && st.lvl === 'all' ? st.atk : '-'); return `<div class="rt-cat"><span>${esc(c.name)}</span><span class="rt-mini"><i style="--w:${x || 0}%"></i></span><b>${x == null ? '–' : `${x}%`}</b></div>`; }).join('')}</div>` : ''}
+      ${S.categories.some((c) => catRate(m, c, comp, st.lvl === 'all' ? `${st.atk}|${st.dfn}` : '-') != null) ? `<div class="rt-dcol"><p class="label">By hazard category · completed</p>
+        ${S.categories.map((c) => { const x = catRate(m, c, comp, st.lvl === 'all' ? `${st.atk}|${st.dfn}` : '-'); return `<div class="rt-cat"><span>${esc(c.name)}</span><span class="rt-mini"><i style="--w:${x || 0}%"></i></span><b>${x == null ? '–' : `${x}%`}</b></div>`; }).join('')}</div>` : ''}
       <div class="rt-dcol"><p class="label">By attack · completed</p>
         ${worst.map(([a, x]) => `<div class="rt-cat${a.id === st.atk ? ' cur' : ''}"><span>${esc(a.name)}</span><span class="rt-mini"><i style="--w:${x}%"></i></span><b>${x}%</b></div>`).join('')}
         ${worst.length < S.attacks.length ? `<p class="muted rt-na">Results updating: ${esc(S.attacks.filter((a) => !worst.some(([w]) => w === a)).map((a) => a.name).join(', '))}</p>` : ''}</div>
