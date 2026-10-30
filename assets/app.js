@@ -14,7 +14,10 @@ const modelById = Object.fromEntries(S.models.map((m) => [m.id, m]));
 const GH = S.meta.github;
 const PAGE = document.body.dataset.page || 'home';
 const ROOT = document.body.dataset.root || '';
-const link = (p = '') => ROOT + p || './';
+// opened straight from disk (file://) a folder link does not open its index.html, so spell it out
+const FILE = location.protocol === 'file:';
+const fileHref = (u) => (FILE && !/^[a-z]+:|^#/i.test(u) ? u.replace(/(^|\/)(\?|#|$)/, '$1index.html$2') : u);
+const link = (p = '') => fileHref(ROOT + p || './');
 const pct = (k, n) => (n ? Math.round(100 * k / n) : 0);
 const INTOTAL = (S.levels || []).filter((l) => l.in_total !== false).map((l) => l.id);
 /** Measured runs (RESULTS.measured). v2: per condition "<attack>|<defense>", counts [n, attempted, completed, safe_alt]
@@ -1064,5 +1067,6 @@ const SECTIONS = { 'hero-run': hero, wall: heroWall, bignums: bigNumbers, lbh: l
   sources, 'hazard-list': hazardList, 'atk-matrix': attackMatrix, rules, 'atk-catalog': attackCatalog, 'defense-list': defenses, loop, metrics, levels, checks, ways, trust };
 Object.entries(SECTIONS).forEach(([id, fill]) => { if (document.getElementById(id)) fill(); });
 $$('[data-href]').forEach((a) => { a.href = link(a.dataset.href); });
+if (FILE) $$('a[href]').forEach((a) => { const h = a.getAttribute('href'); const f = fileHref(h); if (f !== h) a.setAttribute('href', f); });
 reveal();
 })();
